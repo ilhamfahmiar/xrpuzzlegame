@@ -119,7 +119,52 @@ body{font-family:system-ui,sans-serif;background:#0F0E17;color:#fff;min-height:1
 .cf{position:fixed;width:10px;height:10px;border-radius:2px;animation:cfall 3s ease-in forwards;pointer-events:none;z-index:300}
 @keyframes cfall{0%{transform:translateY(-20px) rotate(0);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}
 
-@media(max-width:600px){.diff-opts{flex-direction:column;align-items:center}.diff-opt{min-width:200px}}
+/* ── Responsive ── */
+@media(max-width:600px){
+  .diff-opts{flex-direction:column;align-items:center}
+  .diff-opt{min-width:200px;width:90vw;max-width:340px}
+  .home-title{font-size:2rem}
+  .home-sub{font-size:.9rem}
+  .home-start-btn{padding:.9rem 2rem;font-size:1rem}
+  .home-features{gap:.75rem}
+  .home-feat{font-size:.75rem;padding:.5rem .75rem}
+  .game-hud{padding:.5rem .75rem}
+  .hud-tv{font-size:1.2rem}
+  .hud-prog{font-size:.7rem;padding:3px 8px}
+  .game-gesture-btns{gap:.5rem}
+  .g-btn{min-width:80px;min-height:60px;padding:.6rem .8rem}
+  .g-btn .icon{font-size:1.3rem}
+  .g-btn .label{font-size:.7rem}
+  .g-btn .hint{font-size:.55rem}
+  .res-score{font-size:2.2rem}
+  .res-card{padding:1rem 1.5rem}
+  .diff-title{font-size:1.3rem}
+  .diff-subtitle{font-size:.8rem}
+  .cam-hint-box{font-size:.75rem;padding:.5rem 1rem}
+  .cam-title{font-size:.9rem;padding:6px 14px}
+  #pinch-indicator{width:60px;height:60px;font-size:1.5rem}
+}
+@media(max-width:380px){
+  .home-title{font-size:1.7rem}
+  .diff-opt{padding:1rem 1.25rem}
+  .diff-opt .d-icon{font-size:1.5rem}
+  .diff-opt .d-name{font-size:1rem}
+}
+@media(min-width:1024px){
+  .diff-opts{gap:2rem}
+  .diff-opt{min-width:180px}
+  .home-start-btn{padding:1.2rem 3.5rem;font-size:1.3rem}
+}
+/* Landscape mobile */
+@media(max-height:500px) and (orientation:landscape){
+  .home-logo{font-size:2.5rem}
+  .home-title{font-size:1.8rem}
+  .home-sub{display:none}
+  .home-features{display:none}
+  .diff-opts{flex-direction:row;flex-wrap:wrap;gap:.75rem}
+  .diff-opt{min-width:140px;padding:.75rem 1rem}
+  .diff-opt .d-icon{font-size:1.3rem}
+}
 
 /* PINCH FEEDBACK */
 #pinch-indicator{
@@ -304,7 +349,7 @@ const DIFF_CFG = {
 
 // Gesture config
 // We use OPEN HAND = grab, CLOSED FIST = drop (more natural than pinch)
-const HOVER_HOLD_MS = 700;    // ms to hold hover before activating button
+const HOVER_HOLD_MS = 1500;   // ms to hold hover before activating button (difficulty screen)
 // Open hand: fingers spread apart (avg fingertip distance from palm > threshold)
 // Closed fist: fingers curled (avg fingertip distance from palm < threshold)
 const OPEN_HAND_THRESHOLD = 0.15;  // normalized distance palm->fingertips
@@ -697,10 +742,17 @@ function resizeCanvas() {
 // MEDIAPIPE HANDS — Core gesture engine
 // ═══════════════════════════════════════════════════════
 
-// Open/Close state tracking (no smoothing needed - more responsive)
-// State machine: IDLE -> OPEN (grab) -> CLOSED (drop) -> IDLE
+// Open/Close state tracking
 const handState = { h1: 'idle', h2: 'idle' };
-// 'idle' = no hand, 'open' = hand open (grabbing), 'closed' = fist (dropped)
+
+// Global gesture lock — blocks all gesture input after screen transitions
+let gestureLockUntil = 0;
+function lockGestures(ms) {
+  gestureLockUntil = Date.now() + ms;
+}
+function gesturesLocked() {
+  return Date.now() < gestureLockUntil;
+}
 
 // ── Gesture Calibration ──────────────────────────────
 // Smoothing buffers for each hand (position + pinch)
@@ -901,7 +953,8 @@ function onHandResults(results) {
   // Update cursors
   updateCursors();
 
-  // Route to current screen handler
+  // Route to current screen handler (skip if gestures locked)
+  if (gesturesLocked()) return;
   if (S.screen === 'camera') handleCameraGesture();
   else if (S.screen === 'diff') handleDiffGesture();
   else if (S.screen === 'game') handleGameGesture();
@@ -1146,6 +1199,8 @@ function handleCameraGesture() {
     camCaptureCooldown = true;
     setTimeout(() => camCaptureCooldown = false, 2500);
     setTimeout(() => App.capturePhoto(), 150); // slight delay for visual
+    // Lock gestures for 2s after capture so user doesn't accidentally trigger diff screen
+    lockGestures(2200);
   }
 
   camPinch1Prev = !!p1;
@@ -1185,14 +1240,19 @@ function handleDiffGesture() {
           ring.style.stroke = hi===0 ? '#6C63FF' : '#FF6584';
         }
 
-        // Activate on PINCH or hold timeout
-        if (h.isPinching || elapsed >= HOVER_HOLD_MS) {
+        // Pinch stability: require pinch to be held for 3 consecutive frames
+        if (!opt._pinchFrames) opt._pinchFrames = 0;
+        if (h.isPinching) opt._pinchFrames++;
+        else opt._pinchFrames = 0;
+        const stablePinch = opt._pinchFrames >= 3;
+
+        // Activate on STABLE PINCH (3 frames) or hold timeout
+        if (stablePinch || elapsed >= HOVER_HOLD_MS) {
           if (!opt._activating) {
             opt._activating = true;
+            opt._pinchFrames = 0;
             opt.classList.add('activated');
-            // Show pinch indicator at hand position
             showPinchIndicator(h.ix, h.iy);
-            // Ripple on button
             addRipple(opt, sx, sy);
             const diff = opt.dataset.diff;
             const mode = opt.dataset.mode;
@@ -1200,7 +1260,7 @@ function handleDiffGesture() {
             setTimeout(() => {
               opt._activating = false;
               App.selectDiff(diff, mode);
-            }, 250);
+            }, 300);
           }
         }
       } else {
@@ -1436,6 +1496,8 @@ const App = {
 
   // ── Difficulty ──
   showDiffScreen() {
+    // Lock gestures for 2s — prevents accidental selection after photo capture
+    lockGestures(2000);
     // Attach camera to diff-video for background
     const dv = $('diff-video');
     if (S.stream) { dv.srcObject = S.stream; dv.play().catch(()=>{}); }
@@ -1464,6 +1526,20 @@ const App = {
       opts.appendChild(div);
     });
     $('diff-subtitle').textContent = 'Arahkan tangan ke pilihan + Pinch atau tahan untuk memilih';
+    // Show lock countdown
+    const subEl = $('diff-subtitle');
+    let remaining = 2;
+    const countInterval = setInterval(() => {
+      remaining--;
+      if (remaining > 0) {
+        subEl.textContent = `⏳ Bersiap... (${remaining}s) — jangan cubit dulu`;
+        subEl.style.color = '#FF8906';
+      } else {
+        subEl.textContent = 'Arahkan tangan ke pilihan + Cubit atau tahan untuk memilih';
+        subEl.style.color = '';
+        clearInterval(countInterval);
+      }
+    }, 1000);
     showScreen('diff');
   },
 
