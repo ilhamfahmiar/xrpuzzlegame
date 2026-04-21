@@ -121,6 +121,50 @@ body{font-family:system-ui,sans-serif;background:#0F0E17;color:#fff;min-height:1
 
 @media(max-width:600px){.diff-opts{flex-direction:column;align-items:center}.diff-opt{min-width:200px}}
 
+/* PINCH FEEDBACK */
+#pinch-indicator{
+  position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+  width:80px;height:80px;border-radius:50%;
+  background:rgba(108,99,255,0.15);border:3px solid rgba(108,99,255,0.8);
+  display:none;align-items:center;justify-content:center;
+  font-size:2rem;z-index:800;pointer-events:none;
+  animation:pinch-pulse 0.3s ease-out;
+}
+#pinch-indicator.show{display:flex}
+@keyframes pinch-pulse{
+  0%{transform:translate(-50%,-50%) scale(0.5);opacity:0}
+  60%{transform:translate(-50%,-50%) scale(1.1);opacity:1}
+  100%{transform:translate(-50%,-50%) scale(1);opacity:1}
+}
+/* Ripple on button activation */
+.ripple{
+  position:absolute;border-radius:50%;
+  background:rgba(108,99,255,0.4);
+  transform:scale(0);animation:ripple-anim 0.5s ease-out forwards;
+  pointer-events:none;
+}
+@keyframes ripple-anim{
+  to{transform:scale(4);opacity:0}
+}
+/* Pinch progress ring on diff buttons */
+.diff-opt .pinch-ring{
+  position:absolute;inset:-4px;border-radius:inherit;
+  border:3px solid transparent;
+  background:conic-gradient(#6C63FF 0deg, transparent 0deg) border-box;
+  -webkit-mask:linear-gradient(#fff 0 0) padding-box,linear-gradient(#fff 0 0);
+  -webkit-mask-composite:destination-out;
+  mask-composite:exclude;
+  opacity:0;transition:opacity 0.1s;
+}
+.diff-opt.hover .pinch-ring,.diff-opt.hover2 .pinch-ring{opacity:1}
+/* Cursor label */
+.hand-label{
+  position:fixed;font-size:11px;font-weight:700;color:#fff;
+  background:rgba(0,0,0,0.6);padding:2px 8px;border-radius:10px;
+  pointer-events:none;z-index:601;transform:translate(-50%,20px);
+  white-space:nowrap;
+}
+
 /* HOME SCREEN */
 #screen-home{align-items:center;justify-content:center;text-align:center;padding:2rem;
   background:radial-gradient(ellipse at 50% 40%,#1A1A2E 0%,#0F0E17 70%)}
@@ -229,6 +273,12 @@ body{font-family:system-ui,sans-serif;background:#0F0E17;color:#fff;min-height:1
   </div>
   <div class="res-btns" id="res-btns"></div>
 </div>
+
+<!-- Pinch feedback indicator -->
+<div id="pinch-indicator">🤏</div>
+<!-- Hand labels -->
+<div id="h1-label" class="hand-label" style="display:none">🖐 Cubit</div>
+<div id="h2-label" class="hand-label" style="display:none">🖐 Cubit</div>
 
 <!-- Hidden video for MediaPipe processing (separate from display video) -->
 <video id="mp-video" autoplay playsinline muted style="position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none"></video>
@@ -595,6 +645,8 @@ function startDrag(hand, x, y, dragKey) {
   p.lx=p.x; p.ly=p.y; p.drag=true;
   S[dragKey] = { pid:p.id, ox:x-p.x, oy:y-p.y, closest:null };
   const i=S.pieces.indexOf(p); if(i!==-1){S.pieces.splice(i,1);S.pieces.push(p);}
+  // Visual feedback: show pinch indicator at hand position
+  if (hand) showPinchIndicator(hand.ix, hand.iy);
 }
 
 function moveDrag(x, y, dragKey, player) {
@@ -858,22 +910,46 @@ function onHandResults(results) {
 
 function updateCursors() {
   const c1 = $('h1-cursor'), c2 = $('h2-cursor');
-  const updateCursor = (c, h, dragState) => {
-    if (!h) { c.style.display = 'none'; return; }
+  const l1 = $('h1-label'), l2 = $('h2-label');
+
+  const updateCursor = (c, lbl, h, drag) => {
+    if (!h) {
+      c.style.display = 'none';
+      if (lbl) lbl.style.display = 'none';
+      return;
+    }
+    const sx = h.ix * window.innerWidth;
+    const sy = h.iy * window.innerHeight;
     c.style.display = 'block';
-    c.style.left = (h.ix * window.innerWidth) + 'px';
-    c.style.top = (h.iy * window.innerHeight) + 'px';
+    c.style.left = sx + 'px';
+    c.style.top = sy + 'px';
     let cls = 'hand-dot';
-    if (dragState) cls += ' grab';
+    if (drag) cls += ' grab';
     else if (h.isPinching) cls += ' closed';
     else if (h.isOpen) cls += ' open';
     c.className = cls;
-    // Size based on pinch state
-    const sz = h.isPinching ? 14 : h.isOpen ? 32 : 22;
-    c.style.width = sz + 'px'; c.style.height = sz + 'px';
+    const sz = h.isPinching ? 12 : h.isOpen ? 30 : 20;
+    c.style.width = sz + 'px';
+    c.style.height = sz + 'px';
+    // Label
+    if (lbl) {
+      lbl.style.display = 'block';
+      lbl.style.left = sx + 'px';
+      lbl.style.top = sy + 'px';
+      if (drag) {
+        lbl.textContent = '✊ Lepas';
+        lbl.style.background = 'rgba(44,182,125,0.7)';
+      } else if (h.isPinching) {
+        lbl.textContent = '🤏 Cubitan!';
+        lbl.style.background = 'rgba(108,99,255,0.85)';
+      } else {
+        lbl.textContent = '🖐 Cubit';
+        lbl.style.background = 'rgba(0,0,0,0.6)';
+      }
+    }
   };
-  updateCursor(c1, S.h1, S.drag1);
-  updateCursor(c2, S.h2, S.drag2);
+  updateCursor(c1, l1, S.h1, S.drag1);
+  updateCursor(c2, l2, S.h2, S.drag2);
 }
 
 // ── Camera Screen Gesture ─────────────────────────────
@@ -1035,6 +1111,28 @@ function setAlpha(col, a) {
 let camCaptureCooldown = false;
 let camPinch1Prev = false, camPinch2Prev = false;
 
+function showPinchIndicator(x, y) {
+  const el = $('pinch-indicator');
+  if (!el) return;
+  el.style.left = (x * window.innerWidth) + 'px';
+  el.style.top = (y * window.innerHeight) + 'px';
+  el.style.transform = 'translate(-50%,-50%)';
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 600);
+}
+
+function addRipple(el, x, y) {
+  const r = el.getBoundingClientRect();
+  const ripple = document.createElement('span');
+  ripple.className = 'ripple';
+  const size = Math.max(r.width, r.height);
+  ripple.style.cssText = `width:${size}px;height:${size}px;left:${x-r.left-size/2}px;top:${y-r.top-size/2}px`;
+  el.style.position = 'relative';
+  el.style.overflow = 'hidden';
+  el.appendChild(ripple);
+  setTimeout(() => ripple.remove(), 600);
+}
+
 function handleCameraGesture() {
   if (camCaptureCooldown) return;
 
@@ -1043,9 +1141,11 @@ function handleCameraGesture() {
 
   // Detect pinch START (transition false -> true) = CAPTURE
   if ((p1 && !camPinch1Prev) || (p2 && !camPinch2Prev)) {
+    const h = p1 ? S.h1 : S.h2;
+    showPinchIndicator(h.ix, h.iy);
     camCaptureCooldown = true;
     setTimeout(() => camCaptureCooldown = false, 2500);
-    App.capturePhoto();
+    setTimeout(() => App.capturePhoto(), 150); // slight delay for visual
   }
 
   camPinch1Prev = !!p1;
@@ -1064,19 +1164,19 @@ function handleDiffGesture() {
     if (!h) return;
     const sx = h.ix * window.innerWidth;
     const sy = h.iy * window.innerHeight;
-    const player = hi === 0 ? 'p1' : 'p2';
     const hoverClass = hi === 0 ? 'hover' : 'hover2';
 
     opts.forEach(opt => {
       const r = opt.getBoundingClientRect();
       const inside = sx>=r.left && sx<=r.right && sy>=r.top && sy<=r.bottom;
-      const key = player + '_' + opt.dataset.diff;
+      const key = 'h'+hi+'_'+opt.dataset.diff+'_'+opt.dataset.mode;
 
       if (inside) {
         opt.classList.add(hoverClass);
         if (!diffHoverTimers[key]) diffHoverTimers[key] = now;
         const elapsed = now - diffHoverTimers[key];
         const pct = Math.min(elapsed / HOVER_HOLD_MS, 1);
+
         // Update progress ring
         const ring = opt.querySelector('.prog-ring circle');
         if (ring) {
@@ -1084,25 +1184,39 @@ function handleDiffGesture() {
           ring.parentElement.classList.add('show');
           ring.style.stroke = hi===0 ? '#6C63FF' : '#FF6584';
         }
-        // Activate on pinch OR hold
-        const isPinching = h.isPinching;
-        if (isPinching || elapsed >= HOVER_HOLD_MS) {
-          opt.classList.add('activated');
-          const diff = opt.dataset.diff;
-          const mode = opt.dataset.mode;
-          setTimeout(() => App.selectDiff(diff, mode), 200);
-          // Reset
-          delete diffHoverTimers[key];
+
+        // Activate on PINCH or hold timeout
+        if (h.isPinching || elapsed >= HOVER_HOLD_MS) {
+          if (!opt._activating) {
+            opt._activating = true;
+            opt.classList.add('activated');
+            // Show pinch indicator at hand position
+            showPinchIndicator(h.ix, h.iy);
+            // Ripple on button
+            addRipple(opt, sx, sy);
+            const diff = opt.dataset.diff;
+            const mode = opt.dataset.mode;
+            delete diffHoverTimers[key];
+            setTimeout(() => {
+              opt._activating = false;
+              App.selectDiff(diff, mode);
+            }, 250);
+          }
         }
       } else {
         opt.classList.remove(hoverClass);
+        opt._activating = false;
         delete diffHoverTimers[key];
         const ring = opt.querySelector('.prog-ring circle');
-        if (ring) { ring.style.strokeDashoffset='75.4'; ring.parentElement.classList.remove('show'); }
+        if (ring) {
+          ring.style.strokeDashoffset = '75.4';
+          ring.parentElement.classList.remove('show');
+        }
       }
     });
   });
 }
+
 
 // ── Game Screen Gesture ───────────────────────────────
 let g1PinchPrev = false, g2PinchPrev = false;
