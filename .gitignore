@@ -1,0 +1,19 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# VS Code
+.vscode/
+
+# Kiro internal
+.kiro/
+
+# Unity build artifacts (dari spec Unity yang lama)
+Assets/Scripts/
+
+# Node modules (jika ada)
+node_modules/
+
+# Logs
+*.log
