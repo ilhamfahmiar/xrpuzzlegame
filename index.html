@@ -1,1521 +1,2048 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="id">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Your Face Puzzle — AR Gesture</title>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
-<style>
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-body{font-family:system-ui,sans-serif;background:#0F0E17;color:#fff;min-height:100vh;overflow:hidden;user-select:none}
-.screen{display:none;min-height:100vh;width:100%;position:relative}
-.screen.active{display:flex;flex-direction:column}
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Your Face Puzzle — AR Gesture</title>
+    <script
+      src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"
+      crossorigin="anonymous"
+      onerror="window._mpLoadError = true"
+    ></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"
+      crossorigin="anonymous"
+      onerror="window._mpLoadError = true"
+    ></script>
+    <style>
+      *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+      body{font-family:system-ui,sans-serif;background:#0F0E17;color:#fff;min-height:100vh;overflow:hidden;user-select:none}
+      .screen{display:none;min-height:100vh;width:100%;position:relative}
+      .screen.active{display:flex;flex-direction:column}
 
-/* LOADING */
-#screen-loading{align-items:center;justify-content:center;text-align:center;gap:1.5rem;background:#0F0E17}
-.load-logo{font-size:4rem;animation:float 2s ease-in-out infinite}
-@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
-.load-title{font-size:2rem;font-weight:800;background:linear-gradient(135deg,#6C63FF,#FF6584);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-.load-status{color:#A7A9BE;font-size:.95rem}
-.load-bar-wrap{width:280px;height:6px;background:rgba(255,255,255,.1);border-radius:3px;overflow:hidden}
-.load-bar{height:100%;background:linear-gradient(90deg,#6C63FF,#FF6584);border-radius:3px;width:0%;transition:width .3s ease}
-.load-tip{color:#A7A9BE;font-size:.8rem;max-width:300px;line-height:1.5}
+      /* LOADING */
+      #screen-loading{align-items:center;justify-content:center;text-align:center;gap:1.5rem;background:#0F0E17}
+      .load-logo{font-size:4rem;animation:float 2s ease-in-out infinite}
+      @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
+      .load-title{font-size:2rem;font-weight:800;background:linear-gradient(135deg,#6C63FF,#FF6584);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+      .load-status{color:#A7A9BE;font-size:.95rem}
+      .load-bar-wrap{width:280px;height:6px;background:rgba(255,255,255,.1);border-radius:3px;overflow:hidden}
+      .load-bar{height:100%;background:linear-gradient(90deg,#6C63FF,#FF6584);border-radius:3px;width:0%;transition:width .3s ease}
+      .load-tip{color:#A7A9BE;font-size:.8rem;max-width:300px;line-height:1.5}
 
-/* CAMERA / GAME — full screen AR */
-#screen-camera,#screen-game{background:#000}
-.ar-wrap{position:relative;width:100%;height:100vh;overflow:hidden}
-#cam-video,#game-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
-#cam-canvas,#game-canvas{position:absolute;inset:0;width:100%;height:100%;z-index:5}
-#cam-canvas{pointer-events:none}
+      /* CAMERA / GAME — full screen AR */
+      #screen-camera,#screen-game{background:#000}
+      .ar-wrap{position:relative;width:100%;height:100vh;overflow:hidden}
+      #cam-video,#game-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
+      #cam-canvas,#game-canvas{position:absolute;inset:0;width:100%;height:100%;z-index:5}
+      #cam-canvas{pointer-events:none}
 
-/* HAND CURSORS */
-.hand-dot{position:fixed;width:24px;height:24px;border-radius:50%;border:3px solid;pointer-events:none;z-index:600;transform:translate(-50%,-50%);transition:width 60ms,height 60ms,background 60ms;display:none}
-#h1-cursor{border-color:#6C63FF;background:rgba(108,99,255,.25)}
-#h2-cursor{border-color:#FF6584;background:rgba(255,101,132,.25)}
-.hand-dot.open{border-width:3px;box-shadow:0 0 12px rgba(108,99,255,.6)}
-.hand-dot.closed{width:14px!important;height:14px!important;background:rgba(108,99,255,.8);border-color:#6C63FF}
-.hand-dot.grab{border-width:4px;box-shadow:0 0 16px rgba(108,99,255,.8)}
-#h2-cursor.open{box-shadow:0 0 12px rgba(255,101,132,.6)}
-#h2-cursor.closed{background:rgba(255,101,132,.8);border-color:#FF6584}
-#h2-cursor.grab{box-shadow:0 0 16px rgba(255,101,132,.8)}
-/* Gesture hint overlay */
-#gesture-hint{position:fixed;bottom:5rem;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.65);border:1px solid rgba(255,255,255,.15);border-radius:12px;padding:.6rem 1.2rem;font-size:.8rem;color:rgba(255,255,255,.85);z-index:600;pointer-events:none;text-align:center;display:none}
+      /* HAND CURSORS */
+      .hand-dot{position:fixed;width:24px;height:24px;border-radius:50%;border:3px solid;pointer-events:none;z-index:600;transform:translate(-50%,-50%);transition:width 60ms,height 60ms,background 60ms;display:none}
+      #h1-cursor{border-color:#6C63FF;background:rgba(108,99,255,.25)}
+      #h2-cursor{border-color:#FF6584;background:rgba(255,101,132,.25)}
+      .hand-dot.open{border-width:3px;box-shadow:0 0 12px rgba(108,99,255,.6)}
+      .hand-dot.closed{width:14px!important;height:14px!important;background:rgba(108,99,255,.8);border-color:#6C63FF}
+      .hand-dot.grab{border-width:4px;box-shadow:0 0 16px rgba(108,99,255,.8)}
+      #h2-cursor.open{box-shadow:0 0 12px rgba(255,101,132,.6)}
+      #h2-cursor.closed{background:rgba(255,101,132,.8);border-color:#FF6584}
+      #h2-cursor.grab{box-shadow:0 0 16px rgba(255,101,132,.8)}
+      /* Gesture hint overlay */
+      #gesture-hint{position:fixed;bottom:5rem;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.65);border:1px solid rgba(255,255,255,.15);border-radius:12px;padding:.6rem 1.2rem;font-size:.8rem;color:rgba(255,255,255,.85);z-index:600;pointer-events:none;text-align:center;display:none}
 
-/* GESTURE BUTTON — hoverable via hand */
-.g-btn{position:absolute;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:16px;cursor:pointer;transition:all 150ms;border:2px solid rgba(255,255,255,.15);background:rgba(15,14,23,.75);backdrop-filter:blur(8px);padding:1rem 1.5rem;gap:.4rem;min-width:120px;min-height:80px}
-.g-btn .icon{font-size:1.8rem}
-.g-btn .label{font-size:.8rem;font-weight:600;color:#FFFFFE;text-align:center;line-height:1.3}
-.g-btn .hint{font-size:.65rem;color:#A7A9BE;text-align:center}
-.g-btn.hover{border-color:#6C63FF;background:rgba(108,99,255,.25);transform:scale(1.05)}
-.g-btn.hover2{border-color:#FF6584;background:rgba(255,101,132,.25);transform:scale(1.05)}
-.g-btn.activated{border-color:#2CB67D;background:rgba(44,182,125,.3);animation:pop .3s ease}
-@keyframes pop{0%{transform:scale(1)}50%{transform:scale(1.15)}100%{transform:scale(1)}}
+      /* GESTURE BUTTON — hoverable via hand */
+      .g-btn{position:absolute;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:16px;cursor:pointer;transition:all 150ms;border:2px solid rgba(255,255,255,.15);background:rgba(15,14,23,.75);backdrop-filter:blur(8px);padding:1rem 1.5rem;gap:.4rem;min-width:120px;min-height:80px}
+      .g-btn .icon{font-size:1.8rem}
+      .g-btn .label{font-size:.8rem;font-weight:600;color:#FFFFFE;text-align:center;line-height:1.3}
+      .g-btn .hint{font-size:.65rem;color:#A7A9BE;text-align:center}
+      .g-btn.hover{border-color:#6C63FF;background:rgba(108,99,255,.25);transform:scale(1.05)}
+      .g-btn.hover2{border-color:#FF6584;background:rgba(255,101,132,.25);transform:scale(1.05)}
+      .g-btn.activated{border-color:#2CB67D;background:rgba(44,182,125,.3);animation:pop .3s ease}
+      @keyframes pop{0%{transform:scale(1)}50%{transform:scale(1.15)}100%{transform:scale(1)}}
 
-/* PROGRESS RING — for hover countdown */
-.prog-ring{position:absolute;top:-8px;right:-8px;width:28px;height:28px;display:none}
-.prog-ring.show{display:block}
-.prog-ring circle{fill:none;stroke:#6C63FF;stroke-width:3;stroke-dasharray:75.4;stroke-dashoffset:75.4;stroke-linecap:round;transform:rotate(-90deg);transform-origin:50% 50%;transition:stroke-dashoffset .05s linear}
+      /* PROGRESS RING — for hover countdown */
+      .prog-ring{position:absolute;top:-8px;right:-8px;width:28px;height:28px;display:none}
+      .prog-ring.show{display:block}
+      .prog-ring circle{fill:none;stroke:#6C63FF;stroke-width:3;stroke-dasharray:75.4;stroke-dashoffset:75.4;stroke-linecap:round;transform:rotate(-90deg);transform-origin:50% 50%;transition:stroke-dashoffset .05s linear}
 
-/* CAMERA SCREEN UI */
-.cam-ui{position:absolute;inset:0;z-index:10;pointer-events:none}
-.cam-title{position:absolute;top:1.5rem;left:50%;transform:translateX(-50%);font-size:1.1rem;font-weight:700;background:rgba(0,0,0,.5);padding:8px 20px;border-radius:20px;white-space:nowrap}
-.cam-hint-box{position:absolute;bottom:2rem;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.15);border-radius:12px;padding:.75rem 1.25rem;font-size:.85rem;color:rgba(255,255,255,.9);text-align:center;max-width:90vw;line-height:1.5}
-/* oval removed */50%{border-color:rgba(255,101,132,.8)}}
-.cam-frame-rect{position:absolute;border:3px solid rgba(108,99,255,.9);pointer-events:none;display:none}
-.cam-frame-corner{position:absolute;width:20px;height:20px;border-color:#6C63FF;border-style:solid}
-.cam-frame-corner.tl{top:-2px;left:-2px;border-width:3px 0 0 3px}
-.cam-frame-corner.tr{top:-2px;right:-2px;border-width:3px 3px 0 0}
-.cam-frame-corner.bl{bottom:-2px;left:-2px;border-width:0 0 3px 3px}
-.cam-frame-corner.br{bottom:-2px;right:-2px;border-width:0 3px 3px 0}
+      /* CAMERA SCREEN UI */
+      .cam-ui{position:absolute;inset:0;z-index:10;pointer-events:none}
+      .cam-title{position:absolute;top:1.5rem;left:50%;transform:translateX(-50%);font-size:1.1rem;font-weight:700;background:rgba(0,0,0,.5);padding:8px 20px;border-radius:20px;white-space:nowrap}
+      .cam-hint-box{position:absolute;bottom:2rem;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.15);border-radius:12px;padding:.75rem 1.25rem;font-size:.85rem;color:rgba(255,255,255,.9);text-align:center;max-width:90vw;line-height:1.5}
+      /* oval removed */50%{border-color:rgba(255,101,132,.8)}}
+      .cam-frame-rect{position:absolute;border:3px solid rgba(108,99,255,.9);pointer-events:none;display:none}
+      .cam-frame-corner{position:absolute;width:20px;height:20px;border-color:#6C63FF;border-style:solid}
+      .cam-frame-corner.tl{top:-2px;left:-2px;border-width:3px 0 0 3px}
+      .cam-frame-corner.tr{top:-2px;right:-2px;border-width:3px 3px 0 0}
+      .cam-frame-corner.bl{bottom:-2px;left:-2px;border-width:0 0 3px 3px}
+      .cam-frame-corner.br{bottom:-2px;right:-2px;border-width:0 3px 3px 0}
 
-/* DIFFICULTY SCREEN */
-#screen-diff{align-items:center;justify-content:center;background:rgba(15,14,23,.92)}
-.diff-wrap{position:relative;width:100%;height:100vh}
-#diff-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1);opacity:.4}
-.diff-ui{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.5rem;z-index:5}
-.diff-title{font-size:1.6rem;font-weight:800;text-shadow:0 2px 8px rgba(0,0,0,.8)}
-.diff-subtitle{color:rgba(255,255,255,.7);font-size:.9rem;text-shadow:0 1px 4px rgba(0,0,0,.8)}
-.diff-opts{display:flex;gap:1.5rem;flex-wrap:wrap;justify-content:center}
-.diff-opt{background:rgba(15,14,23,.8);border:2px solid rgba(255,255,255,.15);border-radius:20px;padding:1.5rem 2rem;text-align:center;min-width:140px;cursor:pointer;transition:all 150ms;position:relative}
-.diff-opt .d-icon{font-size:2rem;margin-bottom:.5rem}
-.diff-opt .d-name{font-size:1.1rem;font-weight:700}
-.diff-opt .d-det{font-size:.75rem;color:#A7A9BE;margin-top:.25rem}
-.diff-opt.hover{border-color:#6C63FF;background:rgba(108,99,255,.2);transform:scale(1.05)}
-.diff-opt.hover2{border-color:#FF6584;background:rgba(255,101,132,.2);transform:scale(1.05)}
-.diff-opt.activated{border-color:#2CB67D;background:rgba(44,182,125,.2)}
-.diff-mode-label{font-size:.85rem;color:rgba(255,255,255,.6);background:rgba(0,0,0,.4);padding:4px 12px;border-radius:20px}
+      /* DIFFICULTY SCREEN */
+      #screen-diff{align-items:center;justify-content:center;background:rgba(15,14,23,.92)}
+      .diff-wrap{position:relative;width:100%;height:100vh}
+      #diff-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1);opacity:.4}
+      .diff-ui{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.5rem;z-index:5}
+      .diff-title{font-size:1.6rem;font-weight:800;text-shadow:0 2px 8px rgba(0,0,0,.8)}
+      .diff-subtitle{color:rgba(255,255,255,.7);font-size:.9rem;text-shadow:0 1px 4px rgba(0,0,0,.8)}
+      .diff-opts{display:flex;gap:1.5rem;flex-wrap:wrap;justify-content:center}
+      .diff-opt{background:rgba(15,14,23,.8);border:2px solid rgba(255,255,255,.15);border-radius:20px;padding:1.5rem 2rem;text-align:center;min-width:140px;cursor:pointer;transition:all 150ms;position:relative}
+      .diff-opt .d-icon{font-size:2rem;margin-bottom:.5rem}
+      .diff-opt .d-name{font-size:1.1rem;font-weight:700}
+      .diff-opt .d-det{font-size:.75rem;color:#A7A9BE;margin-top:.25rem}
+      .diff-opt.hover{border-color:#6C63FF;background:rgba(108,99,255,.2);transform:scale(1.05)}
+      .diff-opt.hover2{border-color:#FF6584;background:rgba(255,101,132,.2);transform:scale(1.05)}
+      .diff-opt.activated{border-color:#2CB67D;background:rgba(44,182,125,.2)}
+      .diff-mode-label{font-size:.85rem;color:rgba(255,255,255,.6);background:rgba(0,0,0,.4);padding:4px 12px;border-radius:20px}
 
-/* GAME HUD */
-.game-hud{position:absolute;top:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:.75rem 1rem;background:linear-gradient(to bottom,rgba(0,0,0,.7),transparent);z-index:10;pointer-events:none}
-.hud-timer{display:flex;flex-direction:column;align-items:center}
-.hud-tl{font-size:.6rem;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.1em}
-.hud-tv{font-size:1.5rem;font-weight:800;font-variant-numeric:tabular-nums;text-shadow:0 2px 8px rgba(0,0,0,.8)}
-.hud-tv.warn{color:#FF8906;animation:blink 1s ease-in-out infinite}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:.5}}
-.hud-prog{font-size:.8rem;color:rgba(255,255,255,.9);background:rgba(0,0,0,.4);padding:4px 12px;border-radius:20px}
-.hud-mode{font-size:.75rem;color:rgba(255,255,255,.7);background:rgba(108,99,255,.3);padding:3px 10px;border-radius:20px}
-/* Player labels in 2P mode */
-.p1-label,.p2-label{position:absolute;top:4rem;font-size:.8rem;font-weight:700;padding:4px 12px;border-radius:20px;z-index:10}
-.p1-label{left:1rem;background:rgba(108,99,255,.6);color:#fff}
-.p2-label{right:1rem;background:rgba(255,101,132,.6);color:#fff}
-/* Pause/exit gesture buttons in game */
-.game-gesture-btns{position:absolute;bottom:1.5rem;left:50%;transform:translateX(-50%);display:flex;gap:1rem;z-index:10}
+      /* GAME HUD */
+      .game-hud{position:absolute;top:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:.75rem 1rem;background:linear-gradient(to bottom,rgba(0,0,0,.7),transparent);z-index:10;pointer-events:none}
+      .hud-timer{display:flex;flex-direction:column;align-items:center}
+      .hud-tl{font-size:.6rem;color:rgba(255,255,255,.7);text-transform:uppercase;letter-spacing:.1em}
+      .hud-tv{font-size:1.5rem;font-weight:800;font-variant-numeric:tabular-nums;text-shadow:0 2px 8px rgba(0,0,0,.8)}
+      .hud-tv.warn{color:#FF8906;animation:blink 1s ease-in-out infinite}
+      @keyframes blink{0%,100%{opacity:1}50%{opacity:.5}}
+      .hud-prog{font-size:.8rem;color:rgba(255,255,255,.9);background:rgba(0,0,0,.4);padding:4px 12px;border-radius:20px}
+      .hud-mode{font-size:.75rem;color:rgba(255,255,255,.7);background:rgba(108,99,255,.3);padding:3px 10px;border-radius:20px}
+      /* Player labels in 2P mode */
+      .p1-label,.p2-label{position:absolute;top:4rem;font-size:.8rem;font-weight:700;padding:4px 12px;border-radius:20px;z-index:10}
+      .p1-label{left:1rem;background:rgba(108,99,255,.6);color:#fff}
+      .p2-label{right:1rem;background:rgba(255,101,132,.6);color:#fff}
+      /* Pause/exit gesture buttons in game */
+      .game-gesture-btns{position:absolute;bottom:1.5rem;left:50%;transform:translateX(-50%);display:flex;gap:1rem;z-index:10}
 
-/* RESULT */
-#screen-result{align-items:center;justify-content:center;padding:2rem;text-align:center;gap:1.5rem;background:radial-gradient(ellipse at center,#1A1A2E,#0F0E17)}
-.res-emoji{font-size:4rem;animation:bounce .6s ease-in-out}
-@keyframes bounce{0%,100%{transform:scale(1)}50%{transform:scale(1.2)}}
-.res-card{background:#1A1A2E;border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:1.5rem 2.5rem;min-width:240px}
-.res-lbl{font-size:.75rem;color:#A7A9BE;text-transform:uppercase;letter-spacing:.1em}
-.res-score{font-size:3rem;font-weight:800;color:#6C63FF;margin-top:4px}
-.res-det{font-size:.85rem;color:#A7A9BE;margin-top:4px}
-.res-btns{display:flex;gap:1rem;flex-wrap:wrap;justify-content:center;margin-top:.5rem}
+      /* RESULT */
+      #screen-result{align-items:center;justify-content:center;padding:2rem;text-align:center;gap:1.5rem;background:radial-gradient(ellipse at center,#1A1A2E,#0F0E17)}
+      .res-emoji{font-size:4rem;animation:bounce .6s ease-in-out}
+      @keyframes bounce{0%,100%{transform:scale(1)}50%{transform:scale(1.2)}}
+      .res-card{background:#1A1A2E;border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:1.5rem 2.5rem;min-width:240px}
+      .res-lbl{font-size:.75rem;color:#A7A9BE;text-transform:uppercase;letter-spacing:.1em}
+      .res-score{font-size:3rem;font-weight:800;color:#6C63FF;margin-top:4px}
+      .res-det{font-size:.85rem;color:#A7A9BE;margin-top:4px}
+      .res-btns{display:flex;gap:1rem;flex-wrap:wrap;justify-content:center;margin-top:.5rem}
 
-/* TOAST */
-#toast{position:fixed;bottom:2rem;left:50%;transform:translateX(-50%);background:#252540;border:1px solid rgba(255,255,255,.15);border-radius:30px;padding:10px 20px;font-size:.9rem;z-index:700;display:none;white-space:nowrap;max-width:90vw;text-align:center}
+      /* TOAST */
+      #toast{position:fixed;bottom:2rem;left:50%;transform:translateX(-50%);background:#252540;border:1px solid rgba(255,255,255,.15);border-radius:30px;padding:10px 20px;font-size:.9rem;z-index:700;display:none;white-space:nowrap;max-width:90vw;text-align:center}
 
-/* CONFETTI */
-.cf{position:fixed;width:10px;height:10px;border-radius:2px;animation:cfall 3s ease-in forwards;pointer-events:none;z-index:300}
-@keyframes cfall{0%{transform:translateY(-20px) rotate(0);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}
+      /* CONFETTI */
+      .cf{position:fixed;width:10px;height:10px;border-radius:2px;animation:cfall 3s ease-in forwards;pointer-events:none;z-index:300}
+      @keyframes cfall{0%{transform:translateY(-20px) rotate(0);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}
 
-/* ── Responsive ── */
-@media(max-width:600px){
-  .diff-opts{flex-direction:column;align-items:center}
-  .diff-opt{min-width:200px;width:90vw;max-width:340px}
-  .home-title{font-size:2rem}
-  .home-sub{font-size:.9rem}
-  .home-start-btn{padding:.9rem 2rem;font-size:1rem}
-  .home-features{gap:.75rem}
-  .home-feat{font-size:.75rem;padding:.5rem .75rem}
-  .game-hud{padding:.5rem .75rem}
-  .hud-tv{font-size:1.2rem}
-  .hud-prog{font-size:.7rem;padding:3px 8px}
-  .game-gesture-btns{gap:.5rem}
-  .g-btn{min-width:80px;min-height:60px;padding:.6rem .8rem}
-  .g-btn .icon{font-size:1.3rem}
-  .g-btn .label{font-size:.7rem}
-  .g-btn .hint{font-size:.55rem}
-  .res-score{font-size:2.2rem}
-  .res-card{padding:1rem 1.5rem}
-  .diff-title{font-size:1.3rem}
-  .diff-subtitle{font-size:.8rem}
-  .cam-hint-box{font-size:.75rem;padding:.5rem 1rem}
-  .cam-title{font-size:.9rem;padding:6px 14px}
-  #pinch-indicator{width:60px;height:60px;font-size:1.5rem}
-}
-@media(max-width:380px){
-  .home-title{font-size:1.7rem}
-  .diff-opt{padding:1rem 1.25rem}
-  .diff-opt .d-icon{font-size:1.5rem}
-  .diff-opt .d-name{font-size:1rem}
-}
-@media(min-width:1024px){
-  .diff-opts{gap:2rem}
-  .diff-opt{min-width:180px}
-  .home-start-btn{padding:1.2rem 3.5rem;font-size:1.3rem}
-}
-/* Landscape mobile */
-@media(max-height:500px) and (orientation:landscape){
-  .home-logo{font-size:2.5rem}
-  .home-title{font-size:1.8rem}
-  .home-sub{display:none}
-  .home-features{display:none}
-  .diff-opts{flex-direction:row;flex-wrap:wrap;gap:.75rem}
-  .diff-opt{min-width:140px;padding:.75rem 1rem}
-  .diff-opt .d-icon{font-size:1.3rem}
-}
+      /* ── Responsive ── */
+      @media(max-width:600px){
+        .diff-opts{flex-direction:column;align-items:center}
+        .diff-opt{min-width:200px;width:90vw;max-width:340px}
+        .home-title{font-size:2rem}
+        .home-sub{font-size:.9rem}
+        .home-start-btn{padding:.9rem 2rem;font-size:1rem}
+        .home-features{gap:.75rem}
+        .home-feat{font-size:.75rem;padding:.5rem .75rem}
+        .game-hud{padding:.5rem .75rem}
+        .hud-tv{font-size:1.2rem}
+        .hud-prog{font-size:.7rem;padding:3px 8px}
+        .game-gesture-btns{gap:.5rem}
+        .g-btn{min-width:80px;min-height:60px;padding:.6rem .8rem}
+        .g-btn .icon{font-size:1.3rem}
+        .g-btn .label{font-size:.7rem}
+        .g-btn .hint{font-size:.55rem}
+        .res-score{font-size:2.2rem}
+        .res-card{padding:1rem 1.5rem}
+        .diff-title{font-size:1.3rem}
+        .diff-subtitle{font-size:.8rem}
+        .cam-hint-box{font-size:.75rem;padding:.5rem 1rem}
+        .cam-title{font-size:.9rem;padding:6px 14px}
+        #pinch-indicator{width:60px;height:60px;font-size:1.5rem}
+      }
+      @media(max-width:380px){
+        .home-title{font-size:1.7rem}
+        .diff-opt{padding:1rem 1.25rem}
+        .diff-opt .d-icon{font-size:1.5rem}
+        .diff-opt .d-name{font-size:1rem}
+      }
+      @media(min-width:1024px){
+        .diff-opts{gap:2rem}
+        .diff-opt{min-width:180px}
+        .home-start-btn{padding:1.2rem 3.5rem;font-size:1.3rem}
+      }
+      /* Landscape mobile */
+      @media(max-height:500px) and (orientation:landscape){
+        .home-logo{font-size:2.5rem}
+        .home-title{font-size:1.8rem}
+        .home-sub{display:none}
+        .home-features{display:none}
+        .diff-opts{flex-direction:row;flex-wrap:wrap;gap:.75rem}
+        .diff-opt{min-width:140px;padding:.75rem 1rem}
+        .diff-opt .d-icon{font-size:1.3rem}
+      }
 
-/* PINCH FEEDBACK */
-#pinch-indicator{
-  position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
-  width:80px;height:80px;border-radius:50%;
-  background:rgba(108,99,255,0.15);border:3px solid rgba(108,99,255,0.8);
-  display:none;align-items:center;justify-content:center;
-  font-size:2rem;z-index:800;pointer-events:none;
-  animation:pinch-pulse 0.3s ease-out;
-}
-#pinch-indicator.show{display:flex}
-@keyframes pinch-pulse{
-  0%{transform:translate(-50%,-50%) scale(0.5);opacity:0}
-  60%{transform:translate(-50%,-50%) scale(1.1);opacity:1}
-  100%{transform:translate(-50%,-50%) scale(1);opacity:1}
-}
-/* Ripple on button activation */
-.ripple{
-  position:absolute;border-radius:50%;
-  background:rgba(108,99,255,0.4);
-  transform:scale(0);animation:ripple-anim 0.5s ease-out forwards;
-  pointer-events:none;
-}
-@keyframes ripple-anim{
-  to{transform:scale(4);opacity:0}
-}
-/* Pinch progress ring on diff buttons */
-.diff-opt .pinch-ring{
-  position:absolute;inset:-4px;border-radius:inherit;
-  border:3px solid transparent;
-  background:conic-gradient(#6C63FF 0deg, transparent 0deg) border-box;
-  -webkit-mask:linear-gradient(#fff 0 0) padding-box,linear-gradient(#fff 0 0);
-  -webkit-mask-composite:destination-out;
-  mask-composite:exclude;
-  opacity:0;transition:opacity 0.1s;
-}
-.diff-opt.hover .pinch-ring,.diff-opt.hover2 .pinch-ring{opacity:1}
-/* Cursor label */
-.hand-label{
-  position:fixed;font-size:11px;font-weight:700;color:#fff;
-  background:rgba(0,0,0,0.6);padding:2px 8px;border-radius:10px;
-  pointer-events:none;z-index:601;transform:translate(-50%,20px);
-  white-space:nowrap;
-}
+      /* PINCH FEEDBACK */
+      #pinch-indicator{
+        position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+        width:80px;height:80px;border-radius:50%;
+        background:rgba(108,99,255,0.15);border:3px solid rgba(108,99,255,0.8);
+        display:none;align-items:center;justify-content:center;
+        font-size:2rem;z-index:800;pointer-events:none;
+        animation:pinch-pulse 0.3s ease-out;
+      }
+      #pinch-indicator.show{display:flex}
+      @keyframes pinch-pulse{
+        0%{transform:translate(-50%,-50%) scale(0.5);opacity:0}
+        60%{transform:translate(-50%,-50%) scale(1.1);opacity:1}
+        100%{transform:translate(-50%,-50%) scale(1);opacity:1}
+      }
+      /* Ripple on button activation */
+      .ripple{
+        position:absolute;border-radius:50%;
+        background:rgba(108,99,255,0.4);
+        transform:scale(0);animation:ripple-anim 0.5s ease-out forwards;
+        pointer-events:none;
+      }
+      @keyframes ripple-anim{
+        to{transform:scale(4);opacity:0}
+      }
+      /* Pinch progress ring on diff buttons */
+      .diff-opt .pinch-ring{
+        position:absolute;inset:-4px;border-radius:inherit;
+        border:3px solid transparent;
+        background:conic-gradient(#6C63FF 0deg, transparent 0deg) border-box;
+        -webkit-mask:linear-gradient(#fff 0 0) padding-box,linear-gradient(#fff 0 0);
+        -webkit-mask-composite:destination-out;
+        mask-composite:exclude;
+        opacity:0;transition:opacity 0.1s;
+      }
+      .diff-opt.hover .pinch-ring,.diff-opt.hover2 .pinch-ring{opacity:1}
+      /* Cursor label */
+      .hand-label{
+        position:fixed;font-size:11px;font-weight:700;color:#fff;
+        background:rgba(0,0,0,0.6);padding:2px 8px;border-radius:10px;
+        pointer-events:none;z-index:601;transform:translate(-50%,20px);
+        white-space:nowrap;
+      }
 
-/* HOME SCREEN */
-#screen-home{align-items:center;justify-content:center;text-align:center;padding:2rem;
-  background:radial-gradient(ellipse at 50% 40%,#1A1A2E 0%,#0F0E17 70%)}
-.home-logo{font-size:5rem;animation:float 3s ease-in-out infinite;margin-bottom:.5rem}
-@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
-.home-title{font-size:2.8rem;font-weight:800;background:linear-gradient(135deg,#6C63FF,#FF6584);
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:.5rem}
-.home-sub{color:#A7A9BE;font-size:1rem;margin-bottom:2.5rem;max-width:320px;line-height:1.6}
-.home-start-btn{display:inline-flex;align-items:center;justify-content:center;gap:.75rem;
-  background:linear-gradient(135deg,#6C63FF,#FF6584);color:#fff;border:none;border-radius:50px;
-  padding:1.1rem 3rem;font-size:1.2rem;font-weight:700;cursor:pointer;
-  box-shadow:0 8px 32px rgba(108,99,255,.45);transition:all 200ms;letter-spacing:.02em}
-.home-start-btn:hover{transform:translateY(-3px);box-shadow:0 12px 40px rgba(108,99,255,.6)}
-.home-start-btn:active{transform:scale(0.97)}
-.home-features{display:flex;gap:1.5rem;margin-top:2rem;flex-wrap:wrap;justify-content:center}
-.home-feat{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);
-  border-radius:12px;padding:.75rem 1.25rem;font-size:.85rem;color:#A7A9BE;display:flex;
-  align-items:center;gap:.5rem}
-.home-feat span{font-size:1.1rem}
-</style>
-</head>
-<body>
-
-<!-- HOME SCREEN -->
-<div id="screen-home" class="screen active">
-  <div class="home-logo">🧩</div>
-  <h1 class="home-title">Your Face Puzzle</h1>
-  <p class="home-sub">Game puzzle AR yang dikontrol sepenuhnya dengan gerakan tangan. Foto wajahmu jadi puzzle!</p>
-  <button class="home-start-btn" onclick="App.startApp()">
-    <span>🖐</span> Mulai Bermain
-  </button>
-  <div class="home-features">
-    <div class="home-feat"><span>📸</span> AR Kamera</div>
-    <div class="home-feat"><span>🤚</span> Gesture Control</div>
-    <div class="home-feat"><span>👥</span> 2 Pemain</div>
-    <div class="home-feat"><span>🧩</span> Puzzle Wajah</div>
-  </div>
-</div>
-
-<!-- LOADING SCREEN -->
-<div id="screen-loading" class="screen">
-  <div class="load-logo">🧩</div>
-  <h1 class="load-title">Your Face Puzzle</h1>
-  <p class="load-status" id="load-status">Memuat MediaPipe Hands...</p>
-  <div class="load-bar-wrap"><div class="load-bar" id="load-bar"></div></div>
-  <p class="load-tip">💡 Pastikan kamera dan koneksi internet aktif.<br>Game ini dikontrol sepenuhnya dengan gerakan tangan.</p>
-</div>
-
-<!-- CAMERA SCREEN -->
-<div id="screen-camera" class="screen">
-  <div class="ar-wrap">
-    <video id="cam-video" autoplay playsinline muted></video>
-    <canvas id="cam-canvas"></canvas>
-    <div class="cam-ui">
-      <div class="cam-title" id="cam-title">📸 Ambil Selfie</div>
-
-      <div class="cam-hint-box" id="cam-hint">
-        ✌️ <b>2 tangan</b> = pilih area foto &nbsp;|&nbsp; 🤏 <b>Pinch</b> = ambil foto
+      /* HOME SCREEN */
+      #screen-home{align-items:center;justify-content:center;text-align:center;padding:2rem;
+        background:radial-gradient(ellipse at 50% 40%,#1A1A2E 0%,#0F0E17 70%)}
+      .home-logo{font-size:5rem;animation:float 3s ease-in-out infinite;margin-bottom:.5rem}
+      @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
+      .home-title{font-size:2.8rem;font-weight:800;background:linear-gradient(135deg,#6C63FF,#FF6584);
+        -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:.5rem}
+      .home-sub{color:#A7A9BE;font-size:1rem;margin-bottom:2.5rem;max-width:320px;line-height:1.6}
+      .home-start-btn{display:inline-flex;align-items:center;justify-content:center;gap:.75rem;
+        background:linear-gradient(135deg,#6C63FF,#FF6584);color:#fff;border:none;border-radius:50px;
+        padding:1.1rem 3rem;font-size:1.2rem;font-weight:700;cursor:pointer;
+        box-shadow:0 8px 32px rgba(108,99,255,.45);transition:all 200ms;letter-spacing:.02em}
+      .home-start-btn:hover{transform:translateY(-3px);box-shadow:0 12px 40px rgba(108,99,255,.6)}
+      .home-start-btn:active{transform:scale(0.97)}
+      .home-features{display:flex;gap:1.5rem;margin-top:2rem;flex-wrap:wrap;justify-content:center}
+      .home-feat{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);
+        border-radius:12px;padding:.75rem 1.25rem;font-size:.85rem;color:#A7A9BE;display:flex;
+        align-items:center;gap:.5rem}
+      .home-feat span{font-size:1.1rem}
+    </style>
+  </head>
+  <body>
+    <!-- HOME SCREEN -->
+    <div id="screen-home" class="screen active">
+      <div class="home-logo">🧩</div>
+      <h1 class="home-title">Your Face Puzzle</h1>
+      <p class="home-sub">
+        Game puzzle AR yang dikontrol sepenuhnya dengan gerakan tangan. Foto
+        wajahmu jadi puzzle!
+      </p>
+      <button class="home-start-btn" onclick="App.startApp()">
+        <span>🖐</span> Mulai Bermain
+      </button>
+      <div class="home-features">
+        <div class="home-feat"><span>📸</span> AR Kamera</div>
+        <div class="home-feat"><span>🤚</span> Gesture Control</div>
+        <div class="home-feat"><span>👥</span> 2 Pemain</div>
+        <div class="home-feat"><span>🧩</span> Puzzle Wajah</div>
       </div>
     </div>
-    <!-- Gesture buttons on camera screen -->
-    <div id="cam-btns" style="position:absolute;inset:0;z-index:10;pointer-events:none"></div>
-  </div>
-</div>
 
-<!-- DIFFICULTY SCREEN -->
-<div id="screen-diff" class="screen">
-  <div class="diff-wrap">
-    <video id="diff-video" autoplay playsinline muted></video>
-    <div class="diff-ui">
-      <h2 class="diff-title">🎮 Pilih Mode & Kesulitan</h2>
-      <p class="diff-subtitle" id="diff-subtitle">Arahkan tangan ke pilihan + Pinch untuk memilih</p>
-      <div class="diff-opts" id="diff-opts"></div>
-      <p class="diff-mode-label" id="diff-mode-label">Mode: Single Player</p>
-    </div>
-  </div>
-</div>
-
-<!-- GAME SCREEN -->
-<div id="screen-game" class="screen">
-  <div class="ar-wrap">
-    <video id="game-video" autoplay playsinline muted></video>
-    <canvas id="game-canvas"></canvas>
-    <div class="game-hud">
-      <div class="hud-timer">
-        <span class="hud-tl">Waktu</span>
-        <span class="hud-tv" id="hud-timer">05:00</span>
+    <!-- LOADING SCREEN -->
+    <div id="screen-loading" class="screen">
+      <div class="load-logo">🧩</div>
+      <h1 class="load-title">Your Face Puzzle</h1>
+      <p class="load-status" id="load-status">Memuat MediaPipe Hands...</p>
+      <div class="load-bar-wrap">
+        <div class="load-bar" id="load-bar"></div>
       </div>
-      <div class="hud-prog" id="hud-prog">0 / 9</div>
-      <div class="hud-mode" id="hud-mode">Single</div>
+      <p class="load-tip">
+        💡 Pastikan kamera dan koneksi internet aktif.<br />Game ini dikontrol
+        sepenuhnya dengan gerakan tangan.
+      </p>
     </div>
-    <div class="p1-label" id="p1-label" style="display:none">🟣 P1</div>
-    <div class="p2-label" id="p2-label" style="display:none">🔴 P2</div>
-    <div class="game-gesture-btns" id="game-btns"></div>
-  </div>
-</div>
 
-<!-- RESULT SCREEN -->
-<div id="screen-result" class="screen">
-  <div class="res-emoji" id="res-emoji">🎉</div>
-  <h2 style="font-size:2rem;font-weight:800" id="res-title">Selamat!</h2>
-  <div class="res-card">
-    <div class="res-lbl">Skor</div>
-    <div class="res-score" id="res-score">0</div>
-    <div class="res-det" id="res-det"></div>
-  </div>
-  <div class="res-btns" id="res-btns"></div>
-</div>
+    <!-- CAMERA SCREEN -->
+    <div id="screen-camera" class="screen">
+      <div class="ar-wrap">
+        <video id="cam-video" autoplay playsinline muted></video>
+        <canvas id="cam-canvas"></canvas>
+        <div class="cam-ui">
+          <div class="cam-title" id="cam-title">📸 Ambil Selfie</div>
 
-<!-- Pinch feedback indicator -->
-<div id="pinch-indicator">🤏</div>
-<!-- Hand labels -->
-<div id="h1-label" class="hand-label" style="display:none">🖐 Cubit</div>
-<div id="h2-label" class="hand-label" style="display:none">🖐 Cubit</div>
+          <div class="cam-hint-box" id="cam-hint">
+            ✌️ <b>2 tangan</b> = pilih area foto &nbsp;|&nbsp; 🤏 <b>Pinch</b> =
+            ambil foto
+          </div>
+        </div>
+        <!-- Gesture buttons on camera screen -->
+        <div
+          id="cam-btns"
+          style="
+            position: absolute;
+            inset: 0;
+            z-index: 10;
+            pointer-events: none;
+          "
+        ></div>
+      </div>
+    </div>
 
-<!-- Hidden video for MediaPipe processing (separate from display video) -->
-<video id="mp-video" autoplay playsinline muted style="position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none"></video>
+    <!-- DIFFICULTY SCREEN -->
+    <div id="screen-diff" class="screen">
+      <div class="diff-wrap">
+        <video id="diff-video" autoplay playsinline muted></video>
+        <div class="diff-ui">
+          <h2 class="diff-title">🎮 Pilih Mode & Kesulitan</h2>
+          <p class="diff-subtitle" id="diff-subtitle">
+            Arahkan tangan ke pilihan + Pinch untuk memilih
+          </p>
+          <div class="diff-opts" id="diff-opts"></div>
+          <p class="diff-mode-label" id="diff-mode-label">
+            Mode: Single Player
+          </p>
+        </div>
+      </div>
+    </div>
 
-<!-- HAND CURSORS -->
-<div id="h1-cursor" class="hand-dot"></div>
-<div id="h2-cursor" class="hand-dot"></div>
-<div id="toast"></div>
-<div id="gesture-hint"></div>
+    <!-- GAME SCREEN -->
+    <div id="screen-game" class="screen">
+      <div class="ar-wrap">
+        <video id="game-video" autoplay playsinline muted></video>
+        <canvas id="game-canvas"></canvas>
+        <div class="game-hud">
+          <div class="hud-timer">
+            <span class="hud-tl">Waktu</span>
+            <span class="hud-tv" id="hud-timer">05:00</span>
+          </div>
+          <div class="hud-prog" id="hud-prog">0 / 9</div>
+          <div class="hud-mode" id="hud-mode">Single</div>
+        </div>
+        <div class="p1-label" id="p1-label" style="display: none">🟣 P1</div>
+        <div class="p2-label" id="p2-label" style="display: none">🔴 P2</div>
+        <div class="game-gesture-btns" id="game-btns"></div>
+      </div>
+    </div>
 
-<script>
-// ═══════════════════════════════════════════════════════
-// YOUR FACE PUZZLE — Full Gesture Control
-// MediaPipe Hands is MANDATORY, not optional
-// ═══════════════════════════════════════════════════════
+    <!-- RESULT SCREEN -->
+    <div id="screen-result" class="screen">
+      <div class="res-emoji" id="res-emoji">🎉</div>
+      <h2 style="font-size: 2rem; font-weight: 800" id="res-title">Selamat!</h2>
+      <div class="res-card">
+        <div class="res-lbl">Skor</div>
+        <div class="res-score" id="res-score">0</div>
+        <div class="res-det" id="res-det"></div>
+      </div>
+      <div class="res-btns" id="res-btns"></div>
+    </div>
 
-// ── Config ────────────────────────────────────────────
-const DIFF_CFG = {
-  easy:   {g:3, n:9,  t:300, b:0,    icon:'😊', name:'Mudah',  det:'3×3 · 5 menit'},
-  medium: {g:4, n:16, t:180, b:500,  icon:'😤', name:'Sedang', det:'4×4 · 3 menit'},
-  hard:   {g:5, n:25, t:120, b:1500, icon:'🔥', name:'Sulit',  det:'5×5 · 2 menit'}
-};
+    <!-- Pinch feedback indicator -->
+    <div id="pinch-indicator">🤏</div>
+    <!-- Hand labels -->
+    <div id="h1-label" class="hand-label" style="display: none">🖐 Cubit</div>
+    <div id="h2-label" class="hand-label" style="display: none">🖐 Cubit</div>
 
-// Gesture config
-// We use OPEN HAND = grab, CLOSED FIST = drop (more natural than pinch)
-const HOVER_HOLD_MS = 1500;   // ms to hold hover before activating button (difficulty screen)
-// Open hand: fingers spread apart (avg fingertip distance from palm > threshold)
-// Closed fist: fingers curled (avg fingertip distance from palm < threshold)
-const OPEN_HAND_THRESHOLD = 0.15;  // normalized distance palm->fingertips
-const FIST_THRESHOLD = 0.09;       // normalized distance for closed fist
+    <!-- Hidden video for MediaPipe processing (separate from display video) -->
+    <video
+      id="mp-video"
+      autoplay
+      playsinline
+      muted
+      style="
+        position: fixed;
+        top: -9999px;
+        left: -9999px;
+        width: 1px;
+        height: 1px;
+        opacity: 0;
+        pointer-events: none;
+      "
+    ></video>
 
-// ── State ─────────────────────────────────────────────
-const S = {
-  screen: 'loading',
-  stream: null,
-  captData: null,
-  diff: 'medium',
-  is2P: false,
-  pieces: [],
-  timer: null,
-  animId: null,
-  timeLeft: 0,
-  placed1: 0,  // P1 placed pieces (2P mode)
-  placed2: 0,  // P2 placed pieces (2P mode)
-  placed: 0,   // single player
-  paused: false,
-  layout: null,
-  drag1: null,  // P1 drag state
-  drag2: null,  // P2 drag state
-  // Hand tracking
-  hands: null,
-  mpCam: null,
-  h1: null,  // hand 1 data
-  h2: null,  // hand 2 data
-  // Frame selection (camera screen)
-  frameRect: null,
-  // Hover state for gesture buttons
-  hoverState: {},  // btnId -> {hand, startTime, progress}
-};
+    <!-- HAND CURSORS -->
+    <div id="h1-cursor" class="hand-dot"></div>
+    <div id="h2-cursor" class="hand-dot"></div>
+    <div id="toast"></div>
+    <div id="gesture-hint"></div>
 
-// ── Utils ─────────────────────────────────────────────
-const $ = id => document.getElementById(id);
-function showScreen(n) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  const el = $('screen-' + n);
-  if (el) el.classList.add('active');
-  S.screen = n;
-}
-function toast(msg, d) {
-  const t = $('toast'); t.textContent = msg; t.style.display = 'block';
-  clearTimeout(t._t); t._t = setTimeout(() => t.style.display = 'none', d || 2500);
-}
-function fmt(s) {
-  s = Math.max(0, Math.floor(s));
-  return String(Math.floor(s/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0');
-}
-function uid() { return Math.random().toString(36).slice(2,8).toUpperCase(); }
-function mkCanvas(w, h) { const c = document.createElement('canvas'); c.width=w; c.height=h; return c; }
-function confetti() {
-  const cols = ['#6C63FF','#FF6584','#2CB67D','#FF8906','#fff'];
-  for (let i = 0; i < 60; i++) setTimeout(() => {
-    const el = document.createElement('div'); el.className = 'cf';
-    el.style.cssText = `left:${Math.random()*100}vw;top:-20px;background:${cols[Math.floor(Math.random()*cols.length)]};width:${8+Math.random()*8}px;height:${8+Math.random()*8}px;animation-duration:${2+Math.random()*2}s;animation-delay:${Math.random()*.5}s`;
-    document.body.appendChild(el); setTimeout(() => el.remove(), 4000);
-  }, i * 30);
-}
+    <script>
+      // ═══════════════════════════════════════════════════════
+      // YOUR FACE PUZZLE — Full Gesture Control
+      // MediaPipe Hands is MANDATORY, not optional
+      // ═══════════════════════════════════════════════════════
 
-// ── Camera ────────────────────────────────────────────
-async function startCam(el) {
-  if (S.stream) { S.stream.getTracks().forEach(t => t.stop()); S.stream = null; }
-  const stream = await navigator.mediaDevices.getUserMedia({
-    video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
-    audio: false
-  });
-  S.stream = stream; el.srcObject = stream; await el.play(); return stream;
-}
+      // ── Config ────────────────────────────────────────────
+      const DIFF_CFG = {
+        easy: {
+          g: 3,
+          n: 9,
+          t: 300,
+          b: 0,
+          icon: "😊",
+          name: "Mudah",
+          det: "3×3 · 5 menit",
+        },
+        medium: {
+          g: 4,
+          n: 16,
+          t: 180,
+          b: 500,
+          icon: "😤",
+          name: "Sedang",
+          det: "4×4 · 3 menit",
+        },
+        hard: {
+          g: 5,
+          n: 25,
+          t: 120,
+          b: 1500,
+          icon: "🔥",
+          name: "Sulit",
+          det: "5×5 · 2 menit",
+        },
+      };
 
-// ── Image Processing ──────────────────────────────────
-function squareCrop(d) {
-  const {width:w, height:h} = d, sz = Math.min(w,h);
-  const ox = Math.floor((w-sz)/2), oy = Math.floor((h-sz)/2);
-  const s = mkCanvas(w,h); s.getContext('2d').putImageData(d,0,0);
-  const c = mkCanvas(sz,sz); c.getContext('2d').drawImage(s,ox,oy,sz,sz,0,0,sz,sz);
-  return c.getContext('2d').getImageData(0,0,sz,sz);
-}
-function cropRect(d, rx, ry, rw, rh) {
-  // rx,ry,rw,rh in normalized 0-1 coords
-  const {width:w, height:h} = d;
-  const cx=Math.round(rx*w), cy=Math.round(ry*h), cw=Math.round(rw*w), ch=Math.round(rh*h);
-  const s = mkCanvas(w,h); s.getContext('2d').putImageData(d,0,0);
-  const c = mkCanvas(cw,ch); c.getContext('2d').drawImage(s,cx,cy,cw,ch,0,0,cw,ch);
-  return c.getContext('2d').getImageData(0,0,cw,ch);
-}
-function sliceGrid(d, g) {
-  const {width:w, height:h} = d, pw=Math.floor(w/g), ph=Math.floor(h/g);
-  const s = mkCanvas(w,h); s.getContext('2d').putImageData(d,0,0);
-  const out = [];
-  for (let r=0; r<g; r++) for (let c=0; c<g; c++) {
-    const cv = mkCanvas(pw,ph); cv.getContext('2d').drawImage(s,c*pw,r*ph,pw,ph,0,0,pw,ph);
-    out.push(cv.getContext('2d').getImageData(0,0,pw,ph));
-  }
-  return out;
-}
-function buildPieces(d, diff) {
-  const cfg = DIFF_CFG[diff];
-  const cropped = S.frameRect && S.frameRect.w > 0.05 && S.frameRect.h > 0.05
-    ? cropRect(d, S.frameRect.x, S.frameRect.y, S.frameRect.w, S.frameRect.h)
-    : squareCrop(d);
-  const slices = sliceGrid(cropped, cfg.g);
-  let ps = slices.map((img,i) => ({
-    id:i, slot:i, img, x:0, y:0, w:img.width, h:img.height,
-    locked:false, drag:false, lx:0, ly:0,
-    owner: null  // 'p1' or 'p2' in 2P mode
-  }));
-  // Shuffle
-  for (let i=ps.length-1; i>0; i--) {
-    const j = Math.floor(Math.random()*(i+1));
-    [ps[i],ps[j]] = [ps[j],ps[i]];
-  }
-  // Ensure no piece in correct position
-  for (let i=0; i<ps.length; i++) {
-    if (ps[i].id === i && ps.length > 1) {
-      const j = i === ps.length-1 ? 0 : i+1;
-      [ps[i],ps[j]] = [ps[j],ps[i]];
-    }
-  }
-  return ps;
-}
+      // Gesture config
+      // We use OPEN HAND = grab, CLOSED FIST = drop (more natural than pinch)
+      const HOVER_HOLD_MS = 1500; // ms to hold hover before activating button (difficulty screen)
+      // Open hand: fingers spread apart (avg fingertip distance from palm > threshold)
+      // Closed fist: fingers curled (avg fingertip distance from palm < threshold)
+      const OPEN_HAND_THRESHOLD = 0.15; // normalized distance palm->fingertips
+      const FIST_THRESHOLD = 0.09; // normalized distance for closed fist
 
-// ── Layout ────────────────────────────────────────────
-function calcLayout(W, H, g, is2P) {
-  const pad = Math.floor(Math.min(W,H) * 0.02);
-  if (is2P) {
-    // Split screen: P1 left half, P2 right half
-    const half = Math.floor(W/2);
-    const gSz = Math.floor((Math.min(half, H) - pad*3) * 0.62);
-    // P1 grid (left)
-    const g1X = Math.floor((half - gSz) / 2);
-    const g1Y = pad;
-    // P2 grid (right)
-    const g2X = half + Math.floor((half - gSz) / 2);
-    const g2Y = pad;
-    const pW = Math.floor(gSz/g), pH = Math.floor(gSz/g);
-    const hY = g1Y + gSz + pad, hH = H - hY - pad;
-    return {
-      is2P: true, half,
-      g1X, g1Y, g2X, g2Y, gSz,
-      pW, pH,
-      h1X: pad, h1Y: hY, h1W: half - pad*2, hH,
-      h2X: half + pad, h2Y: hY, h2W: half - pad*2, hH
-    };
-  } else {
-    const gH = Math.floor((H - pad*3) * 0.62), gW = gH;
-    const gX = Math.floor((W-gW)/2), gY = pad;
-    const pW = Math.floor(gW/g), pH = Math.floor(gH/g);
-    const hY = gY+gH+pad, hH = H-hY-pad, hX = pad, hW = W-pad*2;
-    return { is2P: false, gX, gY, gW, gH, pW, pH, hX, hY, hW, hH };
-  }
-}
-function layoutHold(pieces, L) {
-  if (L.is2P) {
-    // Split pieces: odd ids to P1, even ids to P2
-    const p1 = pieces.filter(p => !p.locked && p.id % 2 === 0);
-    const p2 = pieces.filter(p => !p.locked && p.id % 2 !== 0);
-    const place = (arr, hX, hY, hW, pW, pH) => {
-      const cols = Math.max(1, Math.floor(hW/(pW+4)));
-      arr.forEach((p,i) => {
-        const c=i%cols, r=Math.floor(i/cols);
-        p.x=hX+c*(pW+4); p.y=hY+r*(pH+4); p.lx=p.x; p.ly=p.y; p.w=pW; p.h=pH;
-      });
-    };
-    place(p1, L.h1X, L.h1Y, L.h1W, L.pW, L.pH);
-    place(p2, L.h2X, L.h2Y, L.h2W, L.pW, L.pH);
-  } else {
-    const ul = pieces.filter(p => !p.locked);
-    const {hX,hY,hW,pW,pH} = L;
-    const cols = Math.max(1, Math.floor(hW/(pW+4)));
-    ul.forEach((p,i) => {
-      const c=i%cols, r=Math.floor(i/cols);
-      p.x=hX+c*(pW+4); p.y=hY+r*(pH+4); p.lx=p.x; p.ly=p.y; p.w=pW; p.h=pH;
-    });
-  }
-}
+      // ── State ─────────────────────────────────────────────
+      const S = {
+        screen: "loading",
+        stream: null,
+        captData: null,
+        diff: "medium",
+        is2P: false,
+        pieces: [],
+        timer: null,
+        animId: null,
+        timeLeft: 0,
+        placed1: 0, // P1 placed pieces (2P mode)
+        placed2: 0, // P2 placed pieces (2P mode)
+        placed: 0, // single player
+        paused: false,
+        layout: null,
+        drag1: null, // P1 drag state
+        drag2: null, // P2 drag state
+        // Hand tracking
+        hands: null,
+        mpCam: null,
+        h1: null, // hand 1 data
+        h2: null, // hand 2 data
+        // Frame selection (camera screen)
+        frameRect: null,
+        // Hover state for gesture buttons
+        hoverState: {}, // btnId -> {hand, startTime, progress}
+      };
 
-// ── Render ────────────────────────────────────────────
-const flashes = new Set();
-function render() {
-  const cv = $('game-canvas'); if (!cv) return;
-  const ctx = cv.getContext('2d'), {width:W, height:H} = cv, L = S.layout;
-  if (!L) return;
-  ctx.clearRect(0,0,W,H);
-  const g = DIFF_CFG[S.diff].g;
+      // ── Utils ─────────────────────────────────────────────
+      const $ = (id) => document.getElementById(id);
+      function showScreen(n) {
+        document
+          .querySelectorAll(".screen")
+          .forEach((s) => s.classList.remove("active"));
+        const el = $("screen-" + n);
+        if (el) el.classList.add("active");
+        S.screen = n;
+      }
+      function toast(msg, d) {
+        const t = $("toast");
+        t.textContent = msg;
+        t.style.display = "block";
+        clearTimeout(t._t);
+        t._t = setTimeout(() => (t.style.display = "none"), d || 2500);
+      }
+      function fmt(s) {
+        s = Math.max(0, Math.floor(s));
+        return (
+          String(Math.floor(s / 60)).padStart(2, "0") +
+          ":" +
+          String(s % 60).padStart(2, "0")
+        );
+      }
+      function uid() {
+        return Math.random().toString(36).slice(2, 8).toUpperCase();
+      }
+      function mkCanvas(w, h) {
+        const c = document.createElement("canvas");
+        c.width = w;
+        c.height = h;
+        return c;
+      }
+      function confetti() {
+        const cols = ["#6C63FF", "#FF6584", "#2CB67D", "#FF8906", "#fff"];
+        for (let i = 0; i < 60; i++)
+          setTimeout(() => {
+            const el = document.createElement("div");
+            el.className = "cf";
+            el.style.cssText = `left:${Math.random() * 100}vw;top:-20px;background:${cols[Math.floor(Math.random() * cols.length)]};width:${8 + Math.random() * 8}px;height:${8 + Math.random() * 8}px;animation-duration:${2 + Math.random() * 2}s;animation-delay:${Math.random() * 0.5}s`;
+            document.body.appendChild(el);
+            setTimeout(() => el.remove(), 4000);
+          }, i * 30);
+      }
 
-  if (L.is2P) {
-    // Draw divider
-    ctx.strokeStyle = 'rgba(255,255,255,0.15)';
-    ctx.lineWidth = 1;
-    ctx.setLineDash([8,8]);
-    ctx.beginPath(); ctx.moveTo(L.half,0); ctx.lineTo(L.half,H); ctx.stroke();
-    ctx.setLineDash([]);
-    // Draw both grids
-    drawGrid(ctx, L.g1X, L.g1Y, L.gSz, L.gSz, g, L.pW, L.pH, S.drag1, 'p1');
-    drawGrid(ctx, L.g2X, L.g2Y, L.gSz, L.gSz, g, L.pW, L.pH, S.drag2, 'p2');
-    // Hold areas
-    ctx.strokeStyle='rgba(255,255,255,.06)'; ctx.lineWidth=1;
-    ctx.strokeRect(L.h1X,L.h1Y,L.h1W,L.hH);
-    ctx.strokeRect(L.h2X,L.h2Y,L.h2W,L.hH);
-    // P1/P2 labels on grid
-    drawLabel(ctx, L.g1X+8, L.g1Y+20, '🟣 P1', 'rgba(108,99,255,.8)');
-    drawLabel(ctx, L.g2X+8, L.g2Y+20, '🔴 P2', 'rgba(255,101,132,.8)');
-  } else {
-    drawGrid(ctx, L.gX, L.gY, L.gW, L.gH, g, L.pW, L.pH, S.drag1, null);
-    ctx.strokeStyle='rgba(255,255,255,.06)'; ctx.lineWidth=1;
-    ctx.strokeRect(L.hX,L.hY,L.hW,L.hH);
-  }
-
-  // Draw pieces (non-dragging first)
-  S.pieces.forEach(p => { if (!p.drag) drawPiece(ctx, p); });
-  // Dragging on top
-  if (S.drag1) { const p=S.pieces.find(q=>q.id===S.drag1.pid); if(p) drawPiece(ctx,p,true,'p1'); }
-  if (S.drag2) { const p=S.pieces.find(q=>q.id===S.drag2.pid); if(p) drawPiece(ctx,p,true,'p2'); }
-
-  // Preview overlay
-  if (S.previewActive && S.captData) {
-    const src = mkCanvas(S.captData.width, S.captData.height);
-    src.getContext('2d').putImageData(S.captData,0,0);
-    ctx.save(); ctx.globalAlpha=.5;
-    if (L.is2P) {
-      ctx.drawImage(src,L.g1X,L.g1Y,L.gSz,L.gSz);
-      ctx.drawImage(src,L.g2X,L.g2Y,L.gSz,L.gSz);
-    } else {
-      ctx.drawImage(src,L.gX,L.gY,L.gW,L.gH);
-    }
-    ctx.restore();
-  }
-
-  S.animId = requestAnimationFrame(render);
-}
-
-function drawGrid(ctx, gX, gY, gW, gH, g, pW, pH, dragState, player) {
-  for (let r=0; r<g; r++) for (let c=0; c<g; c++) {
-    const si=r*g+c, sx=gX+c*pW, sy=gY+r*pH;
-    ctx.fillStyle='rgba(108,99,255,.07)'; ctx.fillRect(sx,sy,pW,pH);
-    const isHover = dragState && dragState.closest===si;
-    ctx.strokeStyle = isHover
-      ? (player==='p2'?'rgba(255,101,132,.7)':'rgba(108,99,255,.7)')
-      : 'rgba(108,99,255,.25)';
-    ctx.lineWidth = isHover ? 2 : 1;
-    ctx.strokeRect(sx,sy,pW,pH);
-    if (isHover) {
-      ctx.fillStyle = player==='p2'?'rgba(255,101,132,.2)':'rgba(108,99,255,.2)';
-      ctx.fillRect(sx,sy,pW,pH);
-    }
-  }
-}
-
-function drawPiece(ctx, p, isDrag, player) {
-  const src = mkCanvas(p.w,p.h); src.getContext('2d').putImageData(p.img,0,0);
-  ctx.save();
-  if (isDrag) {
-    const col = player==='p2' ? 'rgba(255,101,132,.7)' : 'rgba(108,99,255,.7)';
-    ctx.shadowColor=col; ctx.shadowBlur=14; ctx.shadowOffsetY=5; ctx.globalAlpha=.92;
-  }
-  ctx.drawImage(src,p.x,p.y,p.w,p.h);
-  if (flashes.has(p.id)) { ctx.fillStyle='rgba(44,182,125,.45)'; ctx.fillRect(p.x,p.y,p.w,p.h); }
-  ctx.strokeStyle = p.locked ? 'rgba(44,182,125,.7)' : isDrag ? 'transparent' : 'rgba(255,255,255,.15)';
-  ctx.lineWidth = p.locked ? 2 : 1;
-  ctx.strokeRect(p.x,p.y,p.w,p.h);
-  ctx.restore();
-}
-
-function drawLabel(ctx, x, y, text, bg) {
-  ctx.save();
-  ctx.font = 'bold 13px system-ui';
-  const w = ctx.measureText(text).width + 16;
-  ctx.fillStyle = bg; ctx.beginPath();
-  ctx.roundRect(x-4, y-14, w, 22, 6); ctx.fill();
-  ctx.fillStyle = '#fff'; ctx.fillText(text, x+4, y);
-  ctx.restore();
-}
-
-// ── Drag Logic ────────────────────────────────────────
-function pieceAt(x, y, excludeId) {
-  for (let i=S.pieces.length-1; i>=0; i--) {
-    const p = S.pieces[i];
-    if (p.locked) continue;
-    if (excludeId !== undefined && p.id === excludeId) continue;
-    if (x>=p.x && x<=p.x+p.w && y>=p.y && y<=p.y+p.h) return p;
-  }
-  return null;
-}
-
-function closestSlot(cx, cy, player) {
-  const L = S.layout, g = DIFF_CFG[S.diff].g;
-  const {pW, pH} = L;
-  let gX, gY;
-  if (L.is2P) {
-    gX = player==='p2' ? L.g2X : L.g1X;
-    gY = player==='p2' ? L.g2Y : L.g1Y;
-  } else {
-    gX = L.gX; gY = L.gY;
-  }
-  let best=null, bd=Infinity;
-  for (let r=0; r<g; r++) for (let c=0; c<g; c++) {
-    const si=r*g+c, sx=gX+c*pW+pW/2, sy=gY+r*pH+pH/2;
-    const d=Math.hypot(cx-sx,cy-sy);
-    if (d<bd) { bd=d; best=si; }
-  }
-  return bd <= Math.min(pW,pH)*0.55 ? best : null;
-}
-
-function tryPlace(p, slot, player) {
-  const L = S.layout, g = DIFF_CFG[S.diff].g;
-  const {pW, pH} = L;
-  let gX, gY;
-  if (L.is2P) {
-    gX = player==='p2' ? L.g2X : L.g1X;
-    gY = player==='p2' ? L.g2Y : L.g1Y;
-  } else {
-    gX = L.gX; gY = L.gY;
-  }
-  if (slot === p.slot) {
-    const r=Math.floor(slot/g), c=slot%g;
-    p.x=gX+c*pW; p.y=gY+r*pH; p.locked=true; p.owner=player;
-    flashes.add(p.id); setTimeout(()=>flashes.delete(p.id),350);
-    if (L.is2P) {
-      if (player==='p1') S.placed1++; else S.placed2++;
-      updateHUD();
-      if (S.placed1+S.placed2 >= S.pieces.length) setTimeout(()=>App.onWin(),200);
-    } else {
-      S.placed++; updateHUD();
-      if (S.placed >= S.pieces.length) setTimeout(()=>App.onWin(),200);
-    }
-  } else {
-    p.x=p.lx; p.y=p.ly;
-  }
-}
-
-function startDrag(hand, x, y, dragKey) {
-  const other = dragKey==='drag1' ? S.drag2 : S.drag1;
-  const excludeId = other ? other.pid : undefined;
-  const p = pieceAt(x, y, excludeId);
-  if (!p) return;
-  p.lx=p.x; p.ly=p.y; p.drag=true;
-  S[dragKey] = { pid:p.id, ox:x-p.x, oy:y-p.y, closest:null };
-  const i=S.pieces.indexOf(p); if(i!==-1){S.pieces.splice(i,1);S.pieces.push(p);}
-  // Visual feedback: show pinch indicator at hand position
-  if (hand) showPinchIndicator(hand.ix, hand.iy);
-}
-
-function moveDrag(x, y, dragKey, player) {
-  const ds = S[dragKey]; if (!ds) return;
-  const p = S.pieces.find(q=>q.id===ds.pid); if (!p) return;
-  // Lerp for smooth drag (0.4 = responsive, 0.2 = very smooth)
-  const tx = x - ds.ox, ty = y - ds.oy;
-  p.x += (tx - p.x) * 0.4;
-  p.y += (ty - p.y) * 0.4;
-  ds.closest = closestSlot(p.x+p.w/2, p.y+p.h/2, player);
-  if (S.isMp) mpSend({type:'move', pid:p.id, x:p.x, y:p.y});
-}
-
-function endDrag(dragKey, player) {
-  const ds = S[dragKey]; if (!ds) return;
-  const p = S.pieces.find(q=>q.id===ds.pid);
-  if (p) {
-    p.drag=false;
-    const s = closestSlot(p.x+p.w/2, p.y+p.h/2, player);
-    if (s!==null) tryPlace(p,s,player); else {p.x=p.lx;p.y=p.ly;}
-  }
-  S[dragKey]=null;
-}
-
-function updateHUD() {
-  const cfg = DIFF_CFG[S.diff];
-  if (S.is2P) {
-    $('hud-prog').textContent = `P1:${S.placed1} P2:${S.placed2} / ${cfg.n}`;
-  } else {
-    $('hud-prog').textContent = S.placed + ' / ' + cfg.n;
-  }
-  const tv=$('hud-timer'); tv.textContent=fmt(S.timeLeft);
-  tv.className='hud-tv'+(S.timeLeft<30?' warn':'');
-}
-
-function resizeCanvas() {
-  const cv=$('game-canvas'); if(!cv)return;
-  cv.width=window.innerWidth; cv.height=window.innerHeight;
-  if(S.pieces.length){
-    S.layout=calcLayout(cv.width,cv.height,DIFF_CFG[S.diff].g,S.is2P);
-    layoutHold(S.pieces,S.layout);
-  }
-}
-</script>
-
-<script>
-// ═══════════════════════════════════════════════════════
-// MEDIAPIPE HANDS — Core gesture engine
-// ═══════════════════════════════════════════════════════
-
-// Open/Close state tracking
-const handState = { h1: 'idle', h2: 'idle' };
-
-// Global gesture lock — blocks all gesture input after screen transitions
-let gestureLockUntil = 0;
-function lockGestures(ms) {
-  gestureLockUntil = Date.now() + ms;
-}
-function gesturesLocked() {
-  return Date.now() < gestureLockUntil;
-}
-
-// ── Gesture Calibration ──────────────────────────────
-// Smoothing buffers for each hand (position + pinch)
-const _smooth = {
-  h1: { x: [], y: [], pinch: [], size: 0 },
-  h2: { x: [], y: [], pinch: [], size: 0 }
-};
-const SMOOTH_POS = 5;   // frames for position smoothing
-const SMOOTH_PINCH = 4; // frames for pinch smoothing
-
-function smoothVal(buf, val, maxLen) {
-  buf.push(val);
-  if (buf.length > maxLen) buf.shift();
-  return buf.reduce((a, b) => a + b, 0) / buf.length;
-}
-
-// Hand data structure — calibrated & smoothed
-function makeHand(lm, handedness, hKey) {
-  const buf = _smooth[hKey] || _smooth.h1;
-
-  // Key landmarks
-  const wrist = lm[0];
-  const thumbTip = lm[4];
-  const indexTip = lm[8];
-  const middleTip = lm[12];
-  const indexMcp = lm[5];
-  const middleMcp = lm[9];
-
-  // ── Hand size (normalize by palm diagonal) ──
-  const palmSize = Math.hypot(
-    indexMcp.x - wrist.x,
-    indexMcp.y - wrist.y
-  );
-  // Smooth hand size to avoid jitter
-  buf.size = buf.size * 0.85 + palmSize * 0.15;
-  const hs = Math.max(buf.size, 0.05);
-
-  // ── Pinch distance (normalized by hand size) ──
-  const rawPinch = Math.hypot(indexTip.x - thumbTip.x, indexTip.y - thumbTip.y);
-  const normPinch = rawPinch / hs;
-
-  // Smooth pinch value
-  const smoothedPinch = smoothVal(buf.pinch, normPinch, SMOOTH_PINCH);
-
-  // Pinch threshold: 0.4 = ~40% of palm size
-  // Hysteresis: enter at 0.38, exit at 0.50 (prevents flickering)
-  const wasPinching = buf._pinching || false;
-  const isPinching = wasPinching
-    ? smoothedPinch < 0.50   // exit threshold (higher = harder to release)
-    : smoothedPinch < 0.38;  // enter threshold (lower = harder to start)
-  buf._pinching = isPinching;
-
-  // ── Cursor position (index fingertip, smoothed) ──
-  // Mirror X because video is CSS-mirrored
-  const rawX = 1 - indexTip.x;
-  const rawY = indexTip.y;
-  const sx = smoothVal(buf.x, rawX, SMOOTH_POS);
-  const sy = smoothVal(buf.y, rawY, SMOOTH_POS);
-
-  // ── Finger extension (for open/grab detection) ──
-  // Compare tip Y to PIP Y (accounting for hand orientation)
-  const extended = [
-    lm[8].y < lm[6].y,   // index
-    lm[12].y < lm[10].y, // middle
-    lm[16].y < lm[14].y, // ring
-    lm[20].y < lm[18].y, // pinky
-  ];
-  const extCount = extended.filter(Boolean).length;
-  const isOpen = extCount >= 3 && !isPinching;
-  const isClosed = extCount <= 1 || isPinching;
-
-  return {
-    ix: sx, iy: sy,                    // smoothed cursor position
-    tx: 1 - thumbTip.x, ty: thumbTip.y,
-    isPinching,
-    isOpen,
-    isClosed,
-    normPinch: smoothedPinch,          // for visual feedback (0=closed, 1=open)
-    handedness
-  };
-}
-
-// MediaPipe setup
-async function initMediaPipe() {
-  setLoadStatus('Memuat MediaPipe Hands...', 20);
-
-  return new Promise(async (resolve, reject) => {
-    if (typeof Hands === 'undefined') {
-      reject(new Error('MediaPipe tidak tersedia. Periksa koneksi internet.'));
-      return;
-    }
-
-    // Step 1: Get camera stream
-    setLoadStatus('Mengakses kamera...', 35);
-    let stream;
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
-        audio: false
-      });
-      S.stream = stream;
-    } catch (err) {
-      let msg = 'Gagal mengakses kamera.';
-      if (err.name === 'NotAllowedError') msg = 'Izin kamera ditolak. Aktifkan di pengaturan browser.';
-      else if (err.name === 'NotFoundError') msg = 'Kamera tidak ditemukan.';
-      reject(new Error(msg));
-      return;
-    }
-
-    // Step 2: Attach stream to display videos
-    const camVid = $('cam-video');
-    const mpVid = $('mp-video');
-
-    // cam-video: display (mirrored via CSS)
-    camVid.srcObject = stream;
-    await camVid.play().catch(() => {});
-
-    // mp-video: MediaPipe processing (NOT mirrored, raw stream)
-    mpVid.srcObject = stream;
-    await mpVid.play().catch(() => {});
-
-    setLoadStatus('Menginisialisasi gesture engine...', 60);
-
-    // Step 3: Setup MediaPipe Hands
-    const hands = new Hands({
-      locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`
-    });
-
-    hands.setOptions({
-      maxNumHands: 2,
-      modelComplexity: 1,
-      minDetectionConfidence: 0.7,
-      minTrackingConfidence: 0.6
-    });
-
-    hands.onResults(onHandResults);
-    S.hands = hands;
-
-    setLoadStatus('Memuat model AI...', 75);
-
-    // Step 4: Use requestAnimationFrame loop to send frames to MediaPipe
-    // This is more reliable than MediaPipe Camera utility
-    let mpRunning = true;
-    S.mpRunning = true;
-
-    const processFrame = async () => {
-      if (!S.mpRunning || !S.hands) return;
-      if (mpVid.readyState >= 2) {
-        try {
-          await S.hands.send({ image: mpVid });
-        } catch(e) {
-          // Ignore frame errors
+      // ── Camera ────────────────────────────────────────────
+      async function startCam(el) {
+        if (S.stream) {
+          S.stream.getTracks().forEach((t) => t.stop());
+          S.stream = null;
         }
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: "user",
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
+          audio: false,
+        });
+        S.stream = stream;
+        el.srcObject = stream;
+        await el.play();
+        return stream;
       }
-      setTimeout(processFrame, 33); // ~30fps for gesture detection
-    };
 
-    // Warm up the model with first frame
-    try {
-      await new Promise(res => setTimeout(res, 500));
-      if (mpVid.readyState >= 2) {
-        await hands.send({ image: mpVid });
+      // ── Image Processing ──────────────────────────────────
+      function squareCrop(d) {
+        const { width: w, height: h } = d,
+          sz = Math.min(w, h);
+        const ox = Math.floor((w - sz) / 2),
+          oy = Math.floor((h - sz) / 2);
+        const s = mkCanvas(w, h);
+        s.getContext("2d").putImageData(d, 0, 0);
+        const c = mkCanvas(sz, sz);
+        c.getContext("2d").drawImage(s, ox, oy, sz, sz, 0, 0, sz, sz);
+        return c.getContext("2d").getImageData(0, 0, sz, sz);
       }
-    } catch(e) {}
-
-    setLoadStatus('Siap! 🎉', 100);
-
-    // Start processing loop
-    processFrame();
-
-    setTimeout(() => {
-      App.goCamera();
-      resolve();
-    }, 600);
-  });
-}
-
-function setLoadStatus(msg, pct) {
-  const el = $('load-status'); if (el) el.textContent = msg;
-  const bar = $('load-bar'); if (bar) bar.style.width = pct + '%';
-}
-
-// ── Hand Results Handler ──────────────────────────────
-function onHandResults(results) {
-  const lms = results.multiHandLandmarks || [];
-  const hands = results.multiHandedness || [];
-
-  // Reset
-  S.h1 = null; S.h2 = null;
-
-  lms.forEach((lm, i) => {
-    const hKey = i === 0 ? 'h1' : 'h2';
-    const h = makeHand(lm, hands[i]?.label || 'Left', hKey);
-    if (i === 0) S.h1 = h;
-    else S.h2 = h;
-  });
-
-  // Update cursors
-  updateCursors();
-
-  // Route to current screen handler (skip if gestures locked)
-  if (gesturesLocked()) return;
-  if (S.screen === 'camera') handleCameraGesture();
-  else if (S.screen === 'diff') handleDiffGesture();
-  else if (S.screen === 'game') handleGameGesture();
-  else if (S.screen === 'result') handleResultGesture();
-}
-
-function updateCursors() {
-  const c1 = $('h1-cursor'), c2 = $('h2-cursor');
-  const l1 = $('h1-label'), l2 = $('h2-label');
-
-  const updateCursor = (c, lbl, h, drag) => {
-    if (!h) {
-      c.style.display = 'none';
-      if (lbl) lbl.style.display = 'none';
-      return;
-    }
-    const sx = h.ix * window.innerWidth;
-    const sy = h.iy * window.innerHeight;
-    c.style.display = 'block';
-    c.style.left = sx + 'px';
-    c.style.top = sy + 'px';
-    let cls = 'hand-dot';
-    if (drag) cls += ' grab';
-    else if (h.isPinching) cls += ' closed';
-    else if (h.isOpen) cls += ' open';
-    c.className = cls;
-    const sz = h.isPinching ? 12 : h.isOpen ? 30 : 20;
-    c.style.width = sz + 'px';
-    c.style.height = sz + 'px';
-    // Label
-    if (lbl) {
-      lbl.style.display = 'block';
-      lbl.style.left = sx + 'px';
-      lbl.style.top = sy + 'px';
-      if (drag) {
-        lbl.textContent = '✊ Lepas';
-        lbl.style.background = 'rgba(44,182,125,0.7)';
-      } else if (h.isPinching) {
-        lbl.textContent = '🤏 Cubitan!';
-        lbl.style.background = 'rgba(108,99,255,0.85)';
-      } else {
-        lbl.textContent = '🖐 Cubit';
-        lbl.style.background = 'rgba(0,0,0,0.6)';
+      function cropRect(d, rx, ry, rw, rh) {
+        // rx,ry,rw,rh in normalized 0-1 coords
+        const { width: w, height: h } = d;
+        const cx = Math.round(rx * w),
+          cy = Math.round(ry * h),
+          cw = Math.round(rw * w),
+          ch = Math.round(rh * h);
+        const s = mkCanvas(w, h);
+        s.getContext("2d").putImageData(d, 0, 0);
+        const c = mkCanvas(cw, ch);
+        c.getContext("2d").drawImage(s, cx, cy, cw, ch, 0, 0, cw, ch);
+        return c.getContext("2d").getImageData(0, 0, cw, ch);
       }
-    }
-  };
-  updateCursor(c1, l1, S.h1, S.drag1);
-  updateCursor(c2, l2, S.h2, S.drag2);
-}
-
-// ── Camera Screen Gesture ─────────────────────────────
-let camFrameAlpha = 0, camFrameDir = 1;
-let camAnimId = null;
-
-function setupCameraScreen() {
-  // Update hint based on mode
-  const hint = $('cam-hint');
-  if (S.is2P) {
-    hint.innerHTML = '👐 <b>P1:</b> 2 tangan kiri pilih area &nbsp;|&nbsp; �� <b>P2:</b> 2 tangan kanan pilih area<br>✊ <b>Kepalan</b> = ambil foto';
-  } else {
-    hint.innerHTML = '👐 <b>Buka tangan</b> lalu ✊ <b>kepal</b> = ambil foto<br>✌️ <b>2 tangan</b> = pilih area foto';
-  }
-  // Start canvas draw loop for camera
-  const drawCam = () => {
-    if (S.screen !== 'camera') { camAnimId = null; return; }
-    drawCameraOverlay();
-    camAnimId = requestAnimationFrame(drawCam);
-  };
-  if (camAnimId) cancelAnimationFrame(camAnimId);
-  camAnimId = requestAnimationFrame(drawCam);
-}
-
-// Show contextual gesture hint
-function showGestureHint(msg, duration) {
-  const el = $('gesture-hint');
-  if (!el) return;
-  el.innerHTML = msg;
-  el.style.display = 'block';
-  clearTimeout(el._t);
-  el._t = setTimeout(() => el.style.display = 'none', duration || 3000);
-}
-
-function drawCameraOverlay() {
-  const cv = $('cam-canvas'); if (!cv) return;
-  // Always sync canvas size to window
-  if (cv.width !== window.innerWidth || cv.height !== window.innerHeight) {
-    cv.width = window.innerWidth;
-    cv.height = window.innerHeight;
-  }
-  const ctx = cv.getContext('2d'), W = cv.width, H = cv.height;
-  ctx.clearRect(0,0,W,H);
-
-
-// Helper: change alpha in rgba color string
-function setAlpha(col, a) {
-  return col.replace(/rgba\(([^,]+),([^,]+),([^,]+),[^)]+\)/, 'rgba($1,$2,$3,' + a + ')');
-}
-
-  // Draw hand indicator with pinch progress
-  const drawHandIndicator = (h, col, label) => {
-    if (!h) return;
-    const sx = h.ix*W, sy = h.iy*H;
-
-    // Pinch progress: normPinch < 0.38 = pinching, > 0.50 = open
-    // Map: 0.50 (open) -> 0, 0.38 (pinch) -> 1
-    const progress = Math.max(0, Math.min(1, (0.55 - (h.normPinch || 0.55)) / 0.20));
-    const sz = 16 + (1 - progress) * 8; // shrinks as pinch closes
-
-    // Background circle
-    ctx.beginPath();
-    ctx.arc(sx, sy, sz, 0, Math.PI*2);
-    ctx.fillStyle = h.isPinching
-      ? setAlpha(col, 0.9)
-      : setAlpha(col, 0.3);
-    ctx.fill();
-    ctx.strokeStyle = h.isPinching ? '#2CB67D' : setAlpha(col, 0.9);
-    ctx.lineWidth = h.isPinching ? 3 : 2;
-    ctx.stroke();
-
-    // Pinch progress arc
-    if (progress > 0.1) {
-      ctx.beginPath();
-      ctx.arc(sx, sy, sz + 6, -Math.PI/2, -Math.PI/2 + progress * Math.PI * 2);
-      ctx.strokeStyle = '#2CB67D';
-      ctx.lineWidth = 3;
-      ctx.stroke();
-    }
-
-    // Icon
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 13px system-ui';
-    ctx.textAlign = 'center';
-    ctx.fillText(h.isPinching ? '🤏' : '🖐', sx, sy + 5);
-
-    // Label
-    if (label) {
-      ctx.font = 'bold 12px system-ui';
-      ctx.fillStyle = 'rgba(255,255,255,.9)';
-      ctx.fillText(label, sx, sy + sz + 18);
-    }
-    ctx.textAlign = 'left';
-
-    // Thumb tip dot
-    ctx.beginPath();
-    ctx.arc(h.tx*W, h.ty*H, 5, 0, Math.PI*2);
-    ctx.fillStyle = h.isPinching ? '#2CB67D' : setAlpha(col, 0.7);
-    ctx.fill();
-
-    // Line index->thumb
-    ctx.beginPath();
-    ctx.moveTo(sx, sy);
-    ctx.lineTo(h.tx*W, h.ty*H);
-    ctx.strokeStyle = h.isPinching ? '#2CB67D' : 'rgba(255,255,255,0.3)';
-    ctx.lineWidth = h.isPinching ? 2 : 1;
-    ctx.stroke();
-  };
-
-  drawHandIndicator(S.h1, 'rgba(108,99,255,.85)', S.is2P ? 'P1' : '');
-  drawHandIndicator(S.h2, 'rgba(255,101,132,.85)', S.is2P ? 'P2' : '');
-
-  // Frame selection rect (2 hands define corners)
-  if (S.h1 && S.h2) {
-    const mx=Math.min(S.h1.ix,S.h2.ix), Mx=Math.max(S.h1.ix,S.h2.ix);
-    const my=Math.min(S.h1.iy,S.h2.iy), My=Math.max(S.h1.iy,S.h2.iy);
-    S.frameRect = {x:mx, y:my, w:Mx-mx, h:My-my};
-
-    if (S.frameRect.w > 0.05 && S.frameRect.h > 0.05) {
-      const rx=mx*W, ry=my*H, rw=(Mx-mx)*W, rh=(My-my)*H;
-      // No dim overlay — keep camera fully visible
-      camFrameAlpha += 0.04*camFrameDir;
-      if(camFrameAlpha>=1)camFrameDir=-1; if(camFrameAlpha<=.3)camFrameDir=1;
-      ctx.strokeStyle=`rgba(108,99,255,${camFrameAlpha})`; ctx.lineWidth=3;
-      ctx.strokeRect(rx,ry,rw,rh);
-      const cs=22; ctx.strokeStyle='#6C63FF'; ctx.lineWidth=4;
-      [[rx,ry,1,1],[rx+rw,ry,-1,1],[rx,ry+rh,1,-1],[rx+rw,ry+rh,-1,-1]].forEach(([x,y,dx,dy])=>{
-        ctx.beginPath();ctx.moveTo(x+dx*cs,y);ctx.lineTo(x,y);ctx.lineTo(x,y+dy*cs);ctx.stroke();
-      });
-      // In 2P mode: show split line
-      if (S.is2P) {
-        const midX = rx + rw/2;
-        ctx.strokeStyle='rgba(255,255,255,.4)'; ctx.lineWidth=2;
-        ctx.setLineDash([6,6]);
-        ctx.beginPath(); ctx.moveTo(midX,ry); ctx.lineTo(midX,ry+rh); ctx.stroke();
-        ctx.setLineDash([]);
-        ctx.fillStyle='rgba(108,99,255,.8)'; ctx.font='bold 12px system-ui'; ctx.textAlign='center';
-        ctx.fillText('P1', rx+rw/4, ry+20);
-        ctx.fillStyle='rgba(255,101,132,.8)';
-        ctx.fillText('P2', rx+3*rw/4, ry+20);
-        ctx.textAlign='left';
+      function sliceGrid(d, g) {
+        const { width: w, height: h } = d,
+          pw = Math.floor(w / g),
+          ph = Math.floor(h / g);
+        const s = mkCanvas(w, h);
+        s.getContext("2d").putImageData(d, 0, 0);
+        const out = [];
+        for (let r = 0; r < g; r++)
+          for (let c = 0; c < g; c++) {
+            const cv = mkCanvas(pw, ph);
+            cv.getContext("2d").drawImage(
+              s,
+              c * pw,
+              r * ph,
+              pw,
+              ph,
+              0,
+              0,
+              pw,
+              ph,
+            );
+            out.push(cv.getContext("2d").getImageData(0, 0, pw, ph));
+          }
+        return out;
       }
-      ctx.fillStyle='rgba(255,255,255,.9)'; ctx.font='bold 14px system-ui'; ctx.textAlign='center';
-      ctx.fillText('✊ Kepal untuk foto!', W/2, ry>30?ry-10:ry+rh+24);
-      ctx.textAlign='left';
-    }
-  } else {
-    S.frameRect = null;
-    if (!S.h1 && !S.h2) {
-      // No hands: show instruction
-      ctx.fillStyle='rgba(255,255,255,.7)'; ctx.font='bold 15px system-ui'; ctx.textAlign='center';
-      ctx.fillText('👐 Tampilkan tangan di depan kamera', W/2, H-80);
-      ctx.textAlign='left';
-    }
-  }
-}
-
-// Cooldown to prevent double capture
-let camCaptureCooldown = false;
-let camPinch1Prev = false, camPinch2Prev = false;
-
-function showPinchIndicator(x, y) {
-  const el = $('pinch-indicator');
-  if (!el) return;
-  el.style.left = (x * window.innerWidth) + 'px';
-  el.style.top = (y * window.innerHeight) + 'px';
-  el.style.transform = 'translate(-50%,-50%)';
-  el.classList.add('show');
-  setTimeout(() => el.classList.remove('show'), 600);
-}
-
-function addRipple(el, x, y) {
-  const r = el.getBoundingClientRect();
-  const ripple = document.createElement('span');
-  ripple.className = 'ripple';
-  const size = Math.max(r.width, r.height);
-  ripple.style.cssText = `width:${size}px;height:${size}px;left:${x-r.left-size/2}px;top:${y-r.top-size/2}px`;
-  el.style.position = 'relative';
-  el.style.overflow = 'hidden';
-  el.appendChild(ripple);
-  setTimeout(() => ripple.remove(), 600);
-}
-
-function handleCameraGesture() {
-  if (camCaptureCooldown) return;
-
-  const p1 = S.h1 && S.h1.isPinching;
-  const p2 = S.h2 && S.h2.isPinching;
-
-  // Detect pinch START (transition false -> true) = CAPTURE
-  if ((p1 && !camPinch1Prev) || (p2 && !camPinch2Prev)) {
-    const h = p1 ? S.h1 : S.h2;
-    showPinchIndicator(h.ix, h.iy);
-    camCaptureCooldown = true;
-    setTimeout(() => camCaptureCooldown = false, 2500);
-    setTimeout(() => App.capturePhoto(), 150); // slight delay for visual
-    // Lock gestures for 2s after capture so user doesn't accidentally trigger diff screen
-    lockGestures(2200);
-  }
-
-  camPinch1Prev = !!p1;
-  camPinch2Prev = !!p2;
-}
-
-// ── Difficulty Screen Gesture ─────────────────────────
-const diffHoverTimers = {};
-let diffPinch1Prev = false, diffPinch2Prev = false;
-
-function handleDiffGesture() {
-  const opts = document.querySelectorAll('.diff-opt');
-  const now = Date.now();
-
-  [S.h1, S.h2].forEach((h, hi) => {
-    if (!h) return;
-    const sx = h.ix * window.innerWidth;
-    const sy = h.iy * window.innerHeight;
-    const hoverClass = hi === 0 ? 'hover' : 'hover2';
-
-    opts.forEach(opt => {
-      const r = opt.getBoundingClientRect();
-      const inside = sx>=r.left && sx<=r.right && sy>=r.top && sy<=r.bottom;
-      const key = 'h'+hi+'_'+opt.dataset.diff+'_'+opt.dataset.mode;
-
-      if (inside) {
-        opt.classList.add(hoverClass);
-        if (!diffHoverTimers[key]) diffHoverTimers[key] = now;
-        const elapsed = now - diffHoverTimers[key];
-        const pct = Math.min(elapsed / HOVER_HOLD_MS, 1);
-
-        // Update progress ring
-        const ring = opt.querySelector('.prog-ring circle');
-        if (ring) {
-          ring.style.strokeDashoffset = 75.4 * (1 - pct);
-          ring.parentElement.classList.add('show');
-          ring.style.stroke = hi===0 ? '#6C63FF' : '#FF6584';
+      function buildPieces(d, diff) {
+        const cfg = DIFF_CFG[diff];
+        const cropped =
+          S.frameRect && S.frameRect.w > 0.05 && S.frameRect.h > 0.05
+            ? cropRect(
+                d,
+                S.frameRect.x,
+                S.frameRect.y,
+                S.frameRect.w,
+                S.frameRect.h,
+              )
+            : squareCrop(d);
+        const slices = sliceGrid(cropped, cfg.g);
+        let ps = slices.map((img, i) => ({
+          id: i,
+          slot: i,
+          img,
+          x: 0,
+          y: 0,
+          w: img.width,
+          h: img.height,
+          locked: false,
+          drag: false,
+          lx: 0,
+          ly: 0,
+          owner: null, // 'p1' or 'p2' in 2P mode
+        }));
+        // Shuffle
+        for (let i = ps.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [ps[i], ps[j]] = [ps[j], ps[i]];
         }
-
-        // Pinch stability: require pinch to be held for 3 consecutive frames
-        if (!opt._pinchFrames) opt._pinchFrames = 0;
-        if (h.isPinching) opt._pinchFrames++;
-        else opt._pinchFrames = 0;
-        const stablePinch = opt._pinchFrames >= 3;
-
-        // Activate on STABLE PINCH (3 frames) or hold timeout
-        if (stablePinch || elapsed >= HOVER_HOLD_MS) {
-          if (!opt._activating) {
-            opt._activating = true;
-            opt._pinchFrames = 0;
-            opt.classList.add('activated');
-            showPinchIndicator(h.ix, h.iy);
-            addRipple(opt, sx, sy);
-            const diff = opt.dataset.diff;
-            const mode = opt.dataset.mode;
-            delete diffHoverTimers[key];
-            setTimeout(() => {
-              opt._activating = false;
-              App.selectDiff(diff, mode);
-            }, 300);
+        // Ensure no piece in correct position
+        for (let i = 0; i < ps.length; i++) {
+          if (ps[i].id === i && ps.length > 1) {
+            const j = i === ps.length - 1 ? 0 : i + 1;
+            [ps[i], ps[j]] = [ps[j], ps[i]];
           }
         }
-      } else {
-        opt.classList.remove(hoverClass);
-        opt._activating = false;
-        delete diffHoverTimers[key];
-        const ring = opt.querySelector('.prog-ring circle');
-        if (ring) {
-          ring.style.strokeDashoffset = '75.4';
-          ring.parentElement.classList.remove('show');
+        return ps;
+      }
+
+      // ── Layout ────────────────────────────────────────────
+      function calcLayout(W, H, g, is2P) {
+        const pad = Math.floor(Math.min(W, H) * 0.02);
+        if (is2P) {
+          // Split screen: P1 left half, P2 right half
+          const half = Math.floor(W / 2);
+          const gSz = Math.floor((Math.min(half, H) - pad * 3) * 0.72);
+          // P1 grid (left)
+          const g1X = Math.floor((half - gSz) / 2);
+          const g1Y = pad;
+          // P2 grid (right)
+          const g2X = half + Math.floor((half - gSz) / 2);
+          const g2Y = pad;
+          const pW = Math.floor(gSz / g),
+            pH = Math.floor(gSz / g);
+          const hY = g1Y + gSz + pad,
+            hH = H - hY - pad;
+          return {
+            is2P: true,
+            half,
+            g1X,
+            g1Y,
+            g2X,
+            g2Y,
+            gSz,
+            pW,
+            pH,
+            h1X: pad,
+            h1Y: hY,
+            h1W: half - pad * 2,
+            hH,
+            h2X: half + pad,
+            h2Y: hY,
+            h2W: half - pad * 2,
+            hH,
+          };
+        } else {
+          // Layout landscape: holding area kiri (35%), grid kanan (65%)
+          // Layout portrait: grid atas (65%), holding area bawah (35%)
+          const isLandscape = W > H;
+
+          if (isLandscape) {
+            // Landscape: side-by-side — holding kiri, grid kanan
+            const holdW = Math.floor(W * 0.32);
+            const gridSz = Math.floor(
+              Math.min(H - pad * 2, W - holdW - pad * 3),
+            );
+            const gW = gridSz,
+              gH = gridSz;
+            const gX = holdW + pad * 2;
+            const gY = Math.floor((H - gH) / 2);
+            const pW = Math.floor(gW / g),
+              pH = Math.floor(gH / g);
+            const hX = pad,
+              hY = pad,
+              hW = holdW - pad,
+              hH = H - pad * 2;
+            return { is2P: false, gX, gY, gW, gH, pW, pH, hX, hY, hW, hH };
+          } else {
+            // Portrait: grid atas, holding bawah
+            const gH = Math.floor((H - pad * 3) * 0.65),
+              gW = gH;
+            const gX = Math.floor((W - gW) / 2),
+              gY = pad;
+            const pW = Math.floor(gW / g),
+              pH = Math.floor(gH / g);
+            const hY = gY + gH + pad,
+              hH = H - hY - pad,
+              hX = pad,
+              hW = W - pad * 2;
+            return { is2P: false, gX, gY, gW, gH, pW, pH, hX, hY, hW, hH };
+          }
         }
       }
-    });
-  });
-}
-
-
-// ── Game Screen Gesture ───────────────────────────────
-let g1PinchPrev = false, g2PinchPrev = false;
-let previewHeld = false;
-
-function handleGameGesture() {
-  if (S.paused) {
-    // Even when paused, check buttons to allow resume
-    checkGameButtons();
-    return;
-  }
-
-  const cv = $('game-canvas'); if (!cv) return;
-  const rect = cv.getBoundingClientRect();
-  const scaleX = cv.width / rect.width;
-  const scaleY = cv.height / rect.height;
-
-  const toCanvas = (h) => ({
-    x: (h.ix * window.innerWidth - rect.left) * scaleX,
-    y: (h.iy * window.innerHeight - rect.top) * scaleY
-  });
-
-  // OPEN HAND = grab piece, CLOSED FIST = drop piece
-  // This is more natural and reliable than pinch
-
-  const processHand = (h, dragKey, player) => {
-    if (!h) {
-      if (S[dragKey]) endDrag(dragKey, player);
-      handState[dragKey === 'drag1' ? 'h1' : 'h2'] = 'idle';
-      return;
-    }
-    const {x,y} = toCanvas(h);
-    const hKey = dragKey === 'drag1' ? 'h1' : 'h2';
-    const prevState = handState[hKey];
-
-    if (h.isOpen) {
-      // Open hand: grab or continue dragging
-      if (prevState !== 'open') {
-        // Transition to open: start grab
-        startDrag(h, x, y, dragKey);
-      } else if (S[dragKey]) {
-        // Continue dragging
-        moveDrag(x, y, dragKey, player);
+      function layoutHold(pieces, L) {
+        if (L.is2P) {
+          // Split pieces: odd ids to P1, even ids to P2
+          const p1 = pieces.filter((p) => !p.locked && p.id % 2 === 0);
+          const p2 = pieces.filter((p) => !p.locked && p.id % 2 !== 0);
+          const place = (arr, hX, hY, hW, hH, pW, pH) => {
+            const gap = 4;
+            const cols = Math.max(1, Math.floor(hW / (pW + gap)));
+            arr.forEach((p, i) => {
+              const c = i % cols,
+                r = Math.floor(i / cols);
+              p.x = hX + c * (pW + gap);
+              p.y = hY + r * (pH + gap);
+              p.lx = p.x;
+              p.ly = p.y;
+              p.w = pW;
+              p.h = pH;
+            });
+          };
+          place(p1, L.h1X, L.h1Y, L.h1W, L.hH, L.pW, L.pH);
+          place(p2, L.h2X, L.h2Y, L.h2W, L.hH, L.pW, L.pH);
+        } else {
+          const ul = pieces.filter((p) => !p.locked);
+          const { hX, hY, hW, hH, pW, pH } = L;
+          const gap = 4;
+          // Kepingan di holding area SAMA ukurannya dengan slot grid (pW × pH)
+          const cols = Math.max(1, Math.floor(hW / (pW + gap)));
+          ul.forEach((p, i) => {
+            const c = i % cols,
+              r = Math.floor(i / cols);
+            p.x = hX + c * (pW + gap);
+            p.y = hY + r * (pH + gap);
+            p.lx = p.x;
+            p.ly = p.y;
+            p.w = pW;
+            p.h = pH;
+          });
+        }
       }
-      handState[hKey] = 'open';
-    } else if (h.isClosed) {
-      // Closed fist: drop
-      if (prevState === 'open' && S[dragKey]) {
-        endDrag(dragKey, player);
+
+      // ── Render ────────────────────────────────────────────
+      const flashes = new Set();
+      function render() {
+        const cv = $("game-canvas");
+        if (!cv) return;
+        const ctx = cv.getContext("2d"),
+          { width: W, height: H } = cv,
+          L = S.layout;
+        if (!L) return;
+        ctx.clearRect(0, 0, W, H);
+        const g = DIFF_CFG[S.diff].g;
+
+        if (L.is2P) {
+          // Draw divider
+          ctx.strokeStyle = "rgba(255,255,255,0.15)";
+          ctx.lineWidth = 1;
+          ctx.setLineDash([8, 8]);
+          ctx.beginPath();
+          ctx.moveTo(L.half, 0);
+          ctx.lineTo(L.half, H);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          // Draw both grids
+          drawGrid(
+            ctx,
+            L.g1X,
+            L.g1Y,
+            L.gSz,
+            L.gSz,
+            g,
+            L.pW,
+            L.pH,
+            S.drag1,
+            "p1",
+          );
+          drawGrid(
+            ctx,
+            L.g2X,
+            L.g2Y,
+            L.gSz,
+            L.gSz,
+            g,
+            L.pW,
+            L.pH,
+            S.drag2,
+            "p2",
+          );
+          // Hold areas
+          ctx.strokeStyle = "rgba(255,255,255,.06)";
+          ctx.lineWidth = 1;
+          ctx.strokeRect(L.h1X, L.h1Y, L.h1W, L.hH);
+          ctx.strokeRect(L.h2X, L.h2Y, L.h2W, L.hH);
+          // P1/P2 labels on grid
+          drawLabel(ctx, L.g1X + 8, L.g1Y + 20, "🟣 P1", "rgba(108,99,255,.8)");
+          drawLabel(
+            ctx,
+            L.g2X + 8,
+            L.g2Y + 20,
+            "🔴 P2",
+            "rgba(255,101,132,.8)",
+          );
+        } else {
+          drawGrid(ctx, L.gX, L.gY, L.gW, L.gH, g, L.pW, L.pH, S.drag1, null);
+          ctx.strokeStyle = "rgba(255,255,255,.06)";
+          ctx.lineWidth = 1;
+          ctx.strokeRect(L.hX, L.hY, L.hW, L.hH);
+        }
+
+        // Draw pieces (non-dragging first)
+        S.pieces.forEach((p) => {
+          if (!p.drag) drawPiece(ctx, p);
+        });
+        // Dragging on top
+        if (S.drag1) {
+          const p = S.pieces.find((q) => q.id === S.drag1.pid);
+          if (p) drawPiece(ctx, p, true, "p1");
+        }
+        if (S.drag2) {
+          const p = S.pieces.find((q) => q.id === S.drag2.pid);
+          if (p) drawPiece(ctx, p, true, "p2");
+        }
+
+        // Preview overlay
+        if (S.previewActive && S.captData) {
+          const src = mkCanvas(S.captData.width, S.captData.height);
+          src.getContext("2d").putImageData(S.captData, 0, 0);
+          ctx.save();
+          ctx.globalAlpha = 0.5;
+          if (L.is2P) {
+            ctx.drawImage(src, L.g1X, L.g1Y, L.gSz, L.gSz);
+            ctx.drawImage(src, L.g2X, L.g2Y, L.gSz, L.gSz);
+          } else {
+            ctx.drawImage(src, L.gX, L.gY, L.gW, L.gH);
+          }
+          ctx.restore();
+        }
+
+        S.animId = requestAnimationFrame(render);
       }
-      handState[hKey] = 'closed';
-    } else {
-      // Neutral: continue drag if active
-      if (S[dragKey]) moveDrag(x, y, dragKey, player);
-    }
-  };
 
-  if (S.is2P) {
-    processHand(S.h1, 'drag1', 'p1');
-    processHand(S.h2, 'drag2', 'p2');
-  } else {
-    processHand(S.h1, 'drag1', null);
-    // h2 = preview: open hand = show preview
-    if (S.h2) {
-      S.previewActive = S.h2.isOpen;
-    } else {
-      S.previewActive = false;
-    }
-  }
+      function drawGrid(ctx, gX, gY, gW, gH, g, pW, pH, dragState, player) {
+        for (let r = 0; r < g; r++)
+          for (let c = 0; c < g; c++) {
+            const si = r * g + c,
+              sx = gX + c * pW,
+              sy = gY + r * pH;
+            ctx.fillStyle = "rgba(108,99,255,.08)";
+            ctx.fillRect(sx, sy, pW, pH);
+            const isHover = dragState && dragState.closest === si;
+            ctx.strokeStyle = isHover
+              ? player === "p2"
+                ? "rgba(255,101,132,.9)"
+                : "rgba(108,99,255,.9)"
+              : "rgba(108,99,255,.3)";
+            ctx.lineWidth = isHover ? 3 : 1;
+            ctx.strokeRect(sx, sy, pW, pH);
+            if (isHover) {
+              // Highlight lebih terang dan jelas saat kepingan dekat slot
+              ctx.fillStyle =
+                player === "p2"
+                  ? "rgba(255,101,132,.35)"
+                  : "rgba(108,99,255,.35)";
+              ctx.fillRect(sx, sy, pW, pH);
+              // Tambah border glow effect
+              ctx.shadowColor = player === "p2" ? "#FF6584" : "#6C63FF";
+              ctx.shadowBlur = 12;
+              ctx.strokeRect(sx, sy, pW, pH);
+              ctx.shadowBlur = 0;
+            }
+          }
+      }
 
-  checkGameButtons();
-}
+      function drawPiece(ctx, p, isDrag, player) {
+        const src = mkCanvas(p.w, p.h);
+        src.getContext("2d").putImageData(p.img, 0, 0);
+        ctx.save();
+        if (isDrag) {
+          const col =
+            player === "p2" ? "rgba(255,101,132,.8)" : "rgba(108,99,255,.8)";
+          // Scale up sedikit saat di-drag agar lebih mudah dilihat
+          const cx = p.x + p.w / 2,
+            cy = p.y + p.h / 2;
+          ctx.translate(cx, cy);
+          ctx.scale(1.08, 1.08);
+          ctx.translate(-cx, -cy);
+          ctx.shadowColor = col;
+          ctx.shadowBlur = 20;
+          ctx.shadowOffsetY = 6;
+          ctx.globalAlpha = 0.95;
+        }
+        ctx.drawImage(src, p.x, p.y, p.w, p.h);
+        if (flashes.has(p.id)) {
+          ctx.fillStyle = "rgba(44,182,125,.55)";
+          ctx.fillRect(p.x, p.y, p.w, p.h);
+        }
+        ctx.strokeStyle = p.locked
+          ? "rgba(44,182,125,.8)"
+          : isDrag
+            ? player === "p2"
+              ? "rgba(255,101,132,.9)"
+              : "rgba(108,99,255,.9)"
+            : "rgba(255,255,255,.2)";
+        ctx.lineWidth = p.locked ? 2 : isDrag ? 2 : 1;
+        ctx.strokeRect(p.x, p.y, p.w, p.h);
+        ctx.restore();
+      }
 
-const gameBtnHover = {};
-function checkGameButtons() {
-  const btns = document.querySelectorAll('#game-btns .g-btn');
-  const now = Date.now();
-  [S.h1, S.h2].forEach((h, hi) => {
-    if (!h) return;
-    const sx = h.ix * window.innerWidth, sy = h.iy * window.innerHeight;
-    btns.forEach(btn => {
-      const r = btn.getBoundingClientRect();
-      const inside = sx>=r.left && sx<=r.right && sy>=r.top && sy<=r.bottom;
-      const key = 'h'+hi+'_'+btn.dataset.action;
-      if (inside) {
-        btn.classList.add(hi===0?'hover':'hover2');
-        if (!gameBtnHover[key]) gameBtnHover[key] = now;
-        const elapsed = now - gameBtnHover[key];
-        if (h.isPinching || elapsed >= HOVER_HOLD_MS) {
-          btn.classList.add('activated');
-          const action = btn.dataset.action;
-          delete gameBtnHover[key];
+      function drawLabel(ctx, x, y, text, bg) {
+        ctx.save();
+        ctx.font = "bold 13px system-ui";
+        const w = ctx.measureText(text).width + 16;
+        ctx.fillStyle = bg;
+        ctx.beginPath();
+        ctx.roundRect(x - 4, y - 14, w, 22, 6);
+        ctx.fill();
+        ctx.fillStyle = "#fff";
+        ctx.fillText(text, x + 4, y);
+        ctx.restore();
+      }
+
+      // ── Drag Logic ────────────────────────────────────────
+      function pieceAt(x, y, excludeId) {
+        for (let i = S.pieces.length - 1; i >= 0; i--) {
+          const p = S.pieces[i];
+          if (p.locked) continue;
+          if (excludeId !== undefined && p.id === excludeId) continue;
+          if (x >= p.x && x <= p.x + p.w && y >= p.y && y <= p.y + p.h)
+            return p;
+        }
+        return null;
+      }
+
+      function closestSlot(cx, cy, player) {
+        const L = S.layout,
+          g = DIFF_CFG[S.diff].g;
+        const { pW, pH } = L;
+        let gX, gY;
+        if (L.is2P) {
+          gX = player === "p2" ? L.g2X : L.g1X;
+          gY = player === "p2" ? L.g2Y : L.g1Y;
+        } else {
+          gX = L.gX;
+          gY = L.gY;
+        }
+        let best = null,
+          bd = Infinity;
+        for (let r = 0; r < g; r++)
+          for (let c = 0; c < g; c++) {
+            const si = r * g + c,
+              sx = gX + c * pW + pW / 2,
+              sy = gY + r * pH + pH / 2;
+            const d = Math.hypot(cx - sx, cy - sy);
+            if (d < bd) {
+              bd = d;
+              best = si;
+            }
+          }
+        return bd <= Math.min(pW, pH) * 0.85 ? best : null;
+      }
+
+      function tryPlace(p, slot, player) {
+        const L = S.layout,
+          g = DIFF_CFG[S.diff].g;
+        const { pW, pH } = L;
+        let gX, gY;
+        if (L.is2P) {
+          gX = player === "p2" ? L.g2X : L.g1X;
+          gY = player === "p2" ? L.g2Y : L.g1Y;
+        } else {
+          gX = L.gX;
+          gY = L.gY;
+        }
+        if (slot === p.slot) {
+          const r = Math.floor(slot / g),
+            c = slot % g;
+          p.x = gX + c * pW;
+          p.y = gY + r * pH;
+          p.locked = true;
+          p.owner = player;
+          flashes.add(p.id);
+          setTimeout(() => flashes.delete(p.id), 350);
+          if (L.is2P) {
+            if (player === "p1") S.placed1++;
+            else S.placed2++;
+            updateHUD();
+            if (S.placed1 + S.placed2 >= S.pieces.length)
+              setTimeout(() => App.onWin(), 200);
+          } else {
+            S.placed++;
+            updateHUD();
+            if (S.placed >= S.pieces.length) setTimeout(() => App.onWin(), 200);
+          }
+        } else {
+          p.x = p.lx;
+          p.y = p.ly;
+        }
+      }
+
+      function startDrag(hand, x, y, dragKey) {
+        const other = dragKey === "drag1" ? S.drag2 : S.drag1;
+        const excludeId = other ? other.pid : undefined;
+        const p = pieceAt(x, y, excludeId);
+        if (!p) return;
+        p.lx = p.x;
+        p.ly = p.y;
+        p.drag = true;
+        S[dragKey] = { pid: p.id, ox: x - p.x, oy: y - p.y, closest: null };
+        const i = S.pieces.indexOf(p);
+        if (i !== -1) {
+          S.pieces.splice(i, 1);
+          S.pieces.push(p);
+        }
+        // Visual feedback: show pinch indicator at hand position
+        if (hand) showPinchIndicator(hand.ix, hand.iy);
+      }
+
+      function moveDrag(x, y, dragKey, player) {
+        const ds = S[dragKey];
+        if (!ds) return;
+        const p = S.pieces.find((q) => q.id === ds.pid);
+        if (!p) return;
+        // Lerp lebih cepat: 0.45 = responsif, kepingan mengikuti tangan dengan baik
+        const tx = x - ds.ox,
+          ty = y - ds.oy;
+        p.x += (tx - p.x) * 0.45;
+        p.y += (ty - p.y) * 0.45;
+        ds.closest = closestSlot(p.x + p.w / 2, p.y + p.h / 2, player);
+      }
+
+      function endDrag(dragKey, player) {
+        const ds = S[dragKey];
+        if (!ds) return;
+        const p = S.pieces.find((q) => q.id === ds.pid);
+        if (p) {
+          p.drag = false;
+          const s = closestSlot(p.x + p.w / 2, p.y + p.h / 2, player);
+          if (s !== null) tryPlace(p, s, player);
+          else {
+            p.x = p.lx;
+            p.y = p.ly;
+          }
+        }
+        S[dragKey] = null;
+      }
+
+      function updateHUD() {
+        const cfg = DIFF_CFG[S.diff];
+        if (S.is2P) {
+          $("hud-prog").textContent =
+            `P1:${S.placed1} P2:${S.placed2} / ${cfg.n}`;
+        } else {
+          $("hud-prog").textContent = S.placed + " / " + cfg.n;
+        }
+        const tv = $("hud-timer");
+        tv.textContent = fmt(S.timeLeft);
+        tv.className = "hud-tv" + (S.timeLeft < 30 ? " warn" : "");
+      }
+
+      function resizeCanvas() {
+        const cv = $("game-canvas");
+        if (!cv) return;
+        cv.width = window.innerWidth;
+        cv.height = window.innerHeight;
+        if (S.pieces.length) {
+          S.layout = calcLayout(
+            cv.width,
+            cv.height,
+            DIFF_CFG[S.diff].g,
+            S.is2P,
+          );
+          layoutHold(S.pieces, S.layout);
+        }
+      }
+    </script>
+
+    <script>
+      // ═══════════════════════════════════════════════════════
+      // MEDIAPIPE HANDS — Core gesture engine
+      // ═══════════════════════════════════════════════════════
+
+      // Open/Close state tracking
+      const handState = { h1: "idle", h2: "idle" };
+
+      // Global gesture lock — blocks all gesture input after screen transitions
+      let gestureLockUntil = 0;
+      function lockGestures(ms) {
+        gestureLockUntil = Date.now() + ms;
+      }
+      function gesturesLocked() {
+        return Date.now() < gestureLockUntil;
+      }
+
+      // ── Gesture Calibration ──────────────────────────────
+      // Smoothing buffers for each hand (position + pinch)
+      const _smooth = {
+        h1: { x: [], y: [], pinch: [], size: 0 },
+        h2: { x: [], y: [], pinch: [], size: 0 },
+      };
+      const SMOOTH_POS = 7; // frames for position smoothing (higher = smoother cursor)
+      const SMOOTH_PINCH = 5; // frames for pinch smoothing (higher = less false pinch)
+
+      function smoothVal(buf, val, maxLen) {
+        buf.push(val);
+        if (buf.length > maxLen) buf.shift();
+        return buf.reduce((a, b) => a + b, 0) / buf.length;
+      }
+
+      // Hand data structure — calibrated & smoothed
+      function makeHand(lm, handedness, hKey) {
+        const buf = _smooth[hKey] || _smooth.h1;
+
+        // Key landmarks
+        const wrist = lm[0];
+        const thumbTip = lm[4];
+        const indexTip = lm[8];
+        const middleTip = lm[12];
+        const indexMcp = lm[5];
+        const middleMcp = lm[9];
+
+        // ── Hand size (normalize by palm diagonal) ──
+        const palmSize = Math.hypot(indexMcp.x - wrist.x, indexMcp.y - wrist.y);
+        // Smooth hand size to avoid jitter
+        buf.size = buf.size * 0.85 + palmSize * 0.15;
+        const hs = Math.max(buf.size, 0.05);
+
+        // ── Pinch distance (normalized by hand size) ──
+        const rawPinch = Math.hypot(
+          indexTip.x - thumbTip.x,
+          indexTip.y - thumbTip.y,
+        );
+        const normPinch = rawPinch / hs;
+
+        // Smooth pinch value
+        const smoothedPinch = smoothVal(buf.pinch, normPinch, SMOOTH_PINCH);
+
+        // Pinch threshold with hysteresis to prevent flickering
+        // Enter at 0.35 (tighter = needs more deliberate pinch)
+        // Exit at 0.52 (wider = easier to release)
+        const wasPinching = buf._pinching || false;
+        const isPinching = wasPinching
+          ? smoothedPinch < 0.52 // exit threshold
+          : smoothedPinch < 0.35; // enter threshold
+        buf._pinching = isPinching;
+
+        // ── Cursor position (index fingertip, smoothed) ──
+        // Mirror X because video is CSS-mirrored
+        const rawX = 1 - indexTip.x;
+        const rawY = indexTip.y;
+        const sx = smoothVal(buf.x, rawX, SMOOTH_POS);
+        const sy = smoothVal(buf.y, rawY, SMOOTH_POS);
+
+        // ── Finger extension (for open/grab detection) ──
+        // Compare tip Y to PIP Y (accounting for hand orientation)
+        const extended = [
+          lm[8].y < lm[6].y, // index
+          lm[12].y < lm[10].y, // middle
+          lm[16].y < lm[14].y, // ring
+          lm[20].y < lm[18].y, // pinky
+        ];
+        const extCount = extended.filter(Boolean).length;
+        // Require 3+ fingers for open, 1 or fewer for closed (more stable)
+        const isOpen = extCount >= 3 && !isPinching;
+        const isClosed = extCount <= 1 || isPinching;
+
+        return {
+          ix: sx,
+          iy: sy, // smoothed cursor position
+          tx: 1 - thumbTip.x,
+          ty: thumbTip.y,
+          isPinching,
+          isOpen,
+          isClosed,
+          normPinch: smoothedPinch, // for visual feedback (0=closed, 1=open)
+          handedness,
+        };
+      }
+
+      // MediaPipe setup
+      async function initMediaPipe() {
+        setLoadStatus("Memuat MediaPipe Hands...", 20);
+
+        return new Promise(async (resolve, reject) => {
+          // Cek apakah ada error saat load script CDN
+          if (window._mpLoadError) {
+            reject(new Error("Gagal memuat MediaPipe dari CDN. Periksa koneksi internet."));
+            return;
+          }
+
+          // Tunggu hingga Hands tersedia (maks 15 detik)
+          // CDN bisa lambat, jadi kita poll sampai ready
+          let waited = 0;
+          const maxWait = 15000;
+          while (typeof Hands === "undefined" && waited < maxWait) {
+            await new Promise(res => setTimeout(res, 300));
+            waited += 300;
+            if (window._mpLoadError) {
+              reject(new Error("Gagal memuat MediaPipe dari CDN. Periksa koneksi internet."));
+              return;
+            }
+            const pct = Math.min(20 + Math.floor(waited / maxWait * 15), 34);
+            setLoadStatus(`Memuat MediaPipe Hands... (${Math.floor(waited/1000)}s)`, pct);
+          }
+
+          if (typeof Hands === "undefined") {
+            reject(
+              new Error("MediaPipe tidak tersedia setelah " + (maxWait/1000) + "s. Periksa koneksi internet dan coba lagi."),
+            );
+            return;
+          }
+
+          // Step 1: Get camera stream
+          setLoadStatus("Mengakses kamera...", 35);
+          let stream;
+          try {
+            stream = await navigator.mediaDevices.getUserMedia({
+              video: {
+                facingMode: "user",
+                width: { ideal: 1280 },
+                height: { ideal: 720 },
+              },
+              audio: false,
+            });
+            S.stream = stream;
+          } catch (err) {
+            let msg = "Gagal mengakses kamera.";
+            if (err.name === "NotAllowedError")
+              msg = "Izin kamera ditolak. Aktifkan di pengaturan browser.";
+            else if (err.name === "NotFoundError")
+              msg = "Kamera tidak ditemukan.";
+            reject(new Error(msg));
+            return;
+          }
+
+          // Step 2: Attach stream to display videos
+          const camVid = $("cam-video");
+          const mpVid = $("mp-video");
+
+          // cam-video: display (mirrored via CSS)
+          camVid.srcObject = stream;
+          await camVid.play().catch(() => {});
+
+          // mp-video: MediaPipe processing (NOT mirrored, raw stream)
+          mpVid.srcObject = stream;
+          await mpVid.play().catch(() => {});
+
+          setLoadStatus("Menginisialisasi gesture engine...", 60);
+
+          // Step 3: Setup MediaPipe Hands
+          const hands = new Hands({
+            locateFile: (f) =>
+              `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`,
+          });
+
+          hands.setOptions({
+            maxNumHands: 2,
+            modelComplexity: 1,
+            minDetectionConfidence: 0.7,
+            minTrackingConfidence: 0.6,
+          });
+
+          hands.onResults(onHandResults);
+          S.hands = hands;
+
+          setLoadStatus("Memuat model AI...", 75);
+
+          // Step 4: Use requestAnimationFrame loop to send frames to MediaPipe
+          // This is more reliable than MediaPipe Camera utility
+          let mpRunning = true;
+          S.mpRunning = true;
+
+          const processFrame = async () => {
+            if (!S.mpRunning || !S.hands) return;
+            if (mpVid.readyState >= 2) {
+              try {
+                await S.hands.send({ image: mpVid });
+              } catch (e) {
+                // Ignore frame errors
+              }
+            }
+            setTimeout(processFrame, 33); // ~30fps for gesture detection
+          };
+
+          // Warm up the model with first frame
+          try {
+            await new Promise((res) => setTimeout(res, 500));
+            if (mpVid.readyState >= 2) {
+              await hands.send({ image: mpVid });
+            }
+          } catch (e) {}
+
+          setLoadStatus("Siap! 🎉", 100);
+
+          // Start processing loop
+          processFrame();
+
           setTimeout(() => {
-            if (action==='pause') App.togglePause();
-            else if (action==='exit') App.confirmExit();
-            else if (action==='preview') S.previewActive = !S.previewActive;
-          }, 100);
-        }
-      } else {
-        btn.classList.remove('hover','hover2');
-        delete gameBtnHover[key];
+            App.goCamera();
+            resolve();
+          }, 600);
+        });
       }
-    });
-  });
-}
 
-// ── Result Screen Gesture ─────────────────────────────
-const resultBtnHover = {};
-function handleResultGesture() {
-  const btns = document.querySelectorAll('#res-btns .g-btn');
-  const now = Date.now();
-  [S.h1, S.h2].forEach((h, hi) => {
-    if (!h) return;
-    const sx = h.ix * window.innerWidth, sy = h.iy * window.innerHeight;
-    btns.forEach(btn => {
-      const r = btn.getBoundingClientRect();
-      const inside = sx>=r.left && sx<=r.right && sy>=r.top && sy<=r.bottom;
-      const key = 'h'+hi+'_'+btn.dataset.action;
-      if (inside) {
-        btn.classList.add(hi===0?'hover':'hover2');
-        if (!resultBtnHover[key]) resultBtnHover[key] = now;
-        const elapsed = now - resultBtnHover[key];
-        if (h.isPinching || elapsed >= HOVER_HOLD_MS) {
-          btn.classList.add('activated');
-          const action = btn.dataset.action;
-          delete resultBtnHover[key];
-          setTimeout(() => {
-            if (action==='again') App.playAgain();
-            else if (action==='home') App.goHome();
-          }, 100);
-        }
-      } else {
-        btn.classList.remove('hover','hover2');
-        delete resultBtnHover[key];
+      function setLoadStatus(msg, pct) {
+        const el = $("load-status");
+        if (el) el.textContent = msg;
+        const bar = $("load-bar");
+        if (bar) bar.style.width = pct + "%";
       }
-    });
-  });
-}
-</script>
 
-<script>
-// ═══════════════════════════════════════════════════════
-// APP — Main application logic
-// ═══════════════════════════════════════════════════════
+      // ── Hand Results Handler ──────────────────────────────
+      function onHandResults(results) {
+        const lms = results.multiHandLandmarks || [];
+        const hands = results.multiHandedness || [];
 
-const App = {
+        // Reset
+        S.h1 = null;
+        S.h2 = null;
 
-  // ── Init ──
-  async init() {
-    // Just show home screen, don't load MediaPipe yet
-    showScreen('home');
-  },
+        // Build all detected hands first
+        const detected = [];
+        lms.forEach((lm, i) => {
+          const hKey = i === 0 ? "h1" : "h2";
+          const h = makeHand(lm, hands[i]?.label || "Left", hKey);
+          detected.push(h);
+        });
 
-  // Called when user clicks Start button
-  async startApp() {
-    showScreen('loading');
-    try {
-      await initMediaPipe();
-    } catch (err) {
-      $('load-status').textContent = '❌ ' + err.message;
-      $('load-status').style.color = '#FF6584';
-      $('load-bar').style.background = '#FF6584';
-      $('load-bar').style.width = '100%';
-      // Show retry button
-      const retryBtn = document.createElement('button');
-      retryBtn.textContent = '🔄 Coba Lagi';
-      retryBtn.style.cssText = 'margin-top:1rem;padding:.75rem 2rem;background:#6C63FF;color:#fff;border:none;border-radius:12px;font-size:1rem;cursor:pointer';
-      retryBtn.onclick = () => App.startApp();
-      $('screen-loading').appendChild(retryBtn);
-    }
-  },
+        // In 2P mode: assign by screen position (left half = P1, right half = P2)
+        // This prevents P1/P2 swap when both hands are in frame
+        if (S.is2P && detected.length >= 2) {
+          // Sort by X position: leftmost = P1, rightmost = P2
+          detected.sort((a, b) => a.ix - b.ix);
+          S.h1 = detected[0]; // left side = P1
+          S.h2 = detected[1]; // right side = P2
+        } else if (S.is2P && detected.length === 1) {
+          // Single hand in 2P: assign to correct side based on position
+          const h = detected[0];
+          if (h.ix < 0.5) {
+            S.h1 = h;
+            S.h2 = null;
+          } else {
+            S.h1 = null;
+            S.h2 = h;
+          }
+        } else {
+          // Single player or default: first = h1, second = h2
+          if (detected[0]) S.h1 = detected[0];
+          if (detected[1]) S.h2 = detected[1];
+        }
 
-  // ── Home / Navigation ──
-  goHome() {
-    clearInterval(S.timer);
-    if (S.animId) { cancelAnimationFrame(S.animId); S.animId = null; }
-    S.pieces = []; S.drag1 = null; S.drag2 = null;
-    S.previewActive = false;
-    // Reset hand states
-    handState.h1 = 'idle'; handState.h2 = 'idle';
-    // DON'T stop camera — MediaPipe needs it running
-    // Go to home screen
-    showScreen('home');
-  },
+        // Update cursors
+        updateCursors();
 
-  // Go to camera (called from home or after result)
-  goCamera() {
-    // Ensure cam-video has the stream
-    const cv = $('cam-video');
-    if (S.stream && cv.srcObject !== S.stream) {
-      cv.srcObject = S.stream;
-      cv.play().catch(()=>{});
-    } else if (cv.paused && S.stream) {
-      cv.play().catch(()=>{});
-    }
-    showScreen('camera');
-    setupCameraScreen();
-  },
+        // Route to current screen handler (skip if gestures locked)
+        if (gesturesLocked()) return;
+        if (S.screen === "camera") handleCameraGesture();
+        else if (S.screen === "diff") handleDiffGesture();
+        else if (S.screen === "game") handleGameGesture();
+        else if (S.screen === "result") handleResultGesture();
+      }
 
-  // ── Camera ──
-  capturePhoto() {
-    const v = $('cam-video');
-    if (!v || v.readyState < 2) { toast('Kamera belum siap'); return; }
-    const w = v.videoWidth || 640, h = v.videoHeight || 480;
-    const c = mkCanvas(w,h), ctx = c.getContext('2d');
-    ctx.translate(w,0); ctx.scale(-1,1); ctx.drawImage(v,0,0,w,h);
-    S.captData = ctx.getImageData(0,0,w,h);
-    // Flash effect
-    const fl = document.createElement('div');
-    fl.style.cssText='position:fixed;inset:0;background:#fff;z-index:9999;opacity:.8;pointer-events:none;transition:opacity 300ms';
-    document.body.appendChild(fl);
-    setTimeout(()=>fl.style.opacity='0',50);
-    setTimeout(()=>fl.remove(),400);
-    // Go to difficulty
-    App.showDiffScreen();
-  },
+      function updateCursors() {
+        const c1 = $("h1-cursor"),
+          c2 = $("h2-cursor");
+        const l1 = $("h1-label"),
+          l2 = $("h2-label");
 
-  // ── Difficulty ──
-  showDiffScreen() {
-    // Lock gestures for 2s — prevents accidental selection after photo capture
-    lockGestures(2000);
-    // Attach camera to diff-video for background
-    const dv = $('diff-video');
-    if (S.stream) { dv.srcObject = S.stream; dv.play().catch(()=>{}); }
-    // Build difficulty options
-    const opts = $('diff-opts');
-    opts.innerHTML = '';
-    const modes = [
-      { diff:'easy',   mode:'single', icon:'😊', name:'Mudah',  det:'3×3 · 5 menit · Solo' },
-      { diff:'medium', mode:'single', icon:'😤', name:'Sedang', det:'4×4 · 3 menit · Solo' },
-      { diff:'hard',   mode:'single', icon:'🔥', name:'Sulit',  det:'5×5 · 2 menit · Solo' },
-      { diff:'medium', mode:'2p',     icon:'👥', name:'2 Pemain', det:'4×4 · 3 menit · Layar Bagi' },
-    ];
-    modes.forEach(m => {
-      const div = document.createElement('div');
-      div.className = 'diff-opt';
-      div.dataset.diff = m.diff;
-      div.dataset.mode = m.mode;
-      div.innerHTML = `
+        const updateCursor = (c, lbl, h, drag) => {
+          if (!h) {
+            c.style.display = "none";
+            if (lbl) lbl.style.display = "none";
+            return;
+          }
+          const sx = h.ix * window.innerWidth;
+          const sy = h.iy * window.innerHeight;
+          c.style.display = "block";
+          c.style.left = sx + "px";
+          c.style.top = sy + "px";
+          let cls = "hand-dot";
+          if (drag) cls += " grab";
+          else if (h.isPinching) cls += " closed";
+          else if (h.isOpen) cls += " open";
+          c.className = cls;
+          const sz = h.isPinching ? 14 : h.isOpen ? 28 : 20;
+          c.style.width = sz + "px";
+          c.style.height = sz + "px";
+          // Label — sesuai gesture baru: pinch=ambil, fist=lepas
+          if (lbl) {
+            lbl.style.display = "block";
+            lbl.style.left = sx + "px";
+            lbl.style.top = sy + "px";
+            if (drag) {
+              // Sedang membawa kepingan — instruksi: genggam untuk lepas
+              lbl.textContent = "✊ Genggam = lepas";
+              lbl.style.background = "rgba(44,182,125,0.8)";
+            } else if (h.isPinching) {
+              // Sedang cubit — akan ambil kepingan
+              lbl.textContent = "🤏 Mengambil...";
+              lbl.style.background = "rgba(108,99,255,0.9)";
+            } else if (h.isClosed && !h.isPinching) {
+              // Genggam tanpa cubit
+              lbl.textContent = "✊ Genggam";
+              lbl.style.background = "rgba(255,101,132,0.8)";
+            } else {
+              // Tangan terbuka — instruksi: cubit untuk ambil
+              lbl.textContent = "🤏 Cubit = ambil";
+              lbl.style.background = "rgba(0,0,0,0.6)";
+            }
+          }
+        };
+        updateCursor(c1, l1, S.h1, S.drag1);
+        updateCursor(c2, l2, S.h2, S.drag2);
+      }
+
+      // ── Camera Screen Gesture ─────────────────────────────
+      let camFrameAlpha = 0,
+        camFrameDir = 1;
+      let camAnimId = null;
+
+      function setupCameraScreen() {
+        // Update hint based on mode
+        const hint = $("cam-hint");
+        if (S.is2P) {
+          hint.innerHTML =
+            "👐 <b>P1:</b> 2 tangan kiri pilih area &nbsp;|&nbsp; �� <b>P2:</b> 2 tangan kanan pilih area<br>✊ <b>Kepalan</b> = ambil foto";
+        } else {
+          hint.innerHTML =
+            "👐 <b>Buka tangan</b> lalu ✊ <b>kepal</b> = ambil foto<br>✌️ <b>2 tangan</b> = pilih area foto";
+        }
+        // Start canvas draw loop for camera
+        const drawCam = () => {
+          if (S.screen !== "camera") {
+            camAnimId = null;
+            return;
+          }
+          drawCameraOverlay();
+          camAnimId = requestAnimationFrame(drawCam);
+        };
+        if (camAnimId) cancelAnimationFrame(camAnimId);
+        camAnimId = requestAnimationFrame(drawCam);
+      }
+
+      // Show contextual gesture hint
+      function showGestureHint(msg, duration) {
+        const el = $("gesture-hint");
+        if (!el) return;
+        el.innerHTML = msg;
+        el.style.display = "block";
+        clearTimeout(el._t);
+        el._t = setTimeout(() => (el.style.display = "none"), duration || 3000);
+      }
+
+      function drawCameraOverlay() {
+        const cv = $("cam-canvas");
+        if (!cv) return;
+        // Always sync canvas size to window
+        if (
+          cv.width !== window.innerWidth ||
+          cv.height !== window.innerHeight
+        ) {
+          cv.width = window.innerWidth;
+          cv.height = window.innerHeight;
+        }
+        const ctx = cv.getContext("2d"),
+          W = cv.width,
+          H = cv.height;
+        ctx.clearRect(0, 0, W, H);
+
+        // Helper: change alpha in rgba color string
+        function setAlpha(col, a) {
+          return col.replace(
+            /rgba\(([^,]+),([^,]+),([^,]+),[^)]+\)/,
+            "rgba($1,$2,$3," + a + ")",
+          );
+        }
+
+        // Draw hand indicator with pinch progress
+        const drawHandIndicator = (h, col, label) => {
+          if (!h) return;
+          const sx = h.ix * W,
+            sy = h.iy * H;
+
+          // Pinch progress: normPinch < 0.38 = pinching, > 0.50 = open
+          // Map: 0.50 (open) -> 0, 0.38 (pinch) -> 1
+          const progress = Math.max(
+            0,
+            Math.min(1, (0.55 - (h.normPinch || 0.55)) / 0.2),
+          );
+          const sz = 16 + (1 - progress) * 8; // shrinks as pinch closes
+
+          // Background circle
+          ctx.beginPath();
+          ctx.arc(sx, sy, sz, 0, Math.PI * 2);
+          ctx.fillStyle = h.isPinching
+            ? setAlpha(col, 0.9)
+            : setAlpha(col, 0.3);
+          ctx.fill();
+          ctx.strokeStyle = h.isPinching ? "#2CB67D" : setAlpha(col, 0.9);
+          ctx.lineWidth = h.isPinching ? 3 : 2;
+          ctx.stroke();
+
+          // Pinch progress arc
+          if (progress > 0.1) {
+            ctx.beginPath();
+            ctx.arc(
+              sx,
+              sy,
+              sz + 6,
+              -Math.PI / 2,
+              -Math.PI / 2 + progress * Math.PI * 2,
+            );
+            ctx.strokeStyle = "#2CB67D";
+            ctx.lineWidth = 3;
+            ctx.stroke();
+          }
+
+          // Icon
+          ctx.fillStyle = "#fff";
+          ctx.font = "bold 13px system-ui";
+          ctx.textAlign = "center";
+          ctx.fillText(h.isPinching ? "🤏" : "🖐", sx, sy + 5);
+
+          // Label
+          if (label) {
+            ctx.font = "bold 12px system-ui";
+            ctx.fillStyle = "rgba(255,255,255,.9)";
+            ctx.fillText(label, sx, sy + sz + 18);
+          }
+          ctx.textAlign = "left";
+
+          // Thumb tip dot
+          ctx.beginPath();
+          ctx.arc(h.tx * W, h.ty * H, 5, 0, Math.PI * 2);
+          ctx.fillStyle = h.isPinching ? "#2CB67D" : setAlpha(col, 0.7);
+          ctx.fill();
+
+          // Line index->thumb
+          ctx.beginPath();
+          ctx.moveTo(sx, sy);
+          ctx.lineTo(h.tx * W, h.ty * H);
+          ctx.strokeStyle = h.isPinching ? "#2CB67D" : "rgba(255,255,255,0.3)";
+          ctx.lineWidth = h.isPinching ? 2 : 1;
+          ctx.stroke();
+        };
+
+        drawHandIndicator(S.h1, "rgba(108,99,255,.85)", S.is2P ? "P1" : "");
+        drawHandIndicator(S.h2, "rgba(255,101,132,.85)", S.is2P ? "P2" : "");
+
+        // Frame selection rect (2 hands define corners)
+        if (S.h1 && S.h2) {
+          const mx = Math.min(S.h1.ix, S.h2.ix),
+            Mx = Math.max(S.h1.ix, S.h2.ix);
+          const my = Math.min(S.h1.iy, S.h2.iy),
+            My = Math.max(S.h1.iy, S.h2.iy);
+          S.frameRect = { x: mx, y: my, w: Mx - mx, h: My - my };
+
+          if (S.frameRect.w > 0.05 && S.frameRect.h > 0.05) {
+            const rx = mx * W,
+              ry = my * H,
+              rw = (Mx - mx) * W,
+              rh = (My - my) * H;
+            // No dim overlay — keep camera fully visible
+            camFrameAlpha += 0.04 * camFrameDir;
+            if (camFrameAlpha >= 1) camFrameDir = -1;
+            if (camFrameAlpha <= 0.3) camFrameDir = 1;
+            ctx.strokeStyle = `rgba(108,99,255,${camFrameAlpha})`;
+            ctx.lineWidth = 3;
+            ctx.strokeRect(rx, ry, rw, rh);
+            const cs = 22;
+            ctx.strokeStyle = "#6C63FF";
+            ctx.lineWidth = 4;
+            [
+              [rx, ry, 1, 1],
+              [rx + rw, ry, -1, 1],
+              [rx, ry + rh, 1, -1],
+              [rx + rw, ry + rh, -1, -1],
+            ].forEach(([x, y, dx, dy]) => {
+              ctx.beginPath();
+              ctx.moveTo(x + dx * cs, y);
+              ctx.lineTo(x, y);
+              ctx.lineTo(x, y + dy * cs);
+              ctx.stroke();
+            });
+            // In 2P mode: show split line
+            if (S.is2P) {
+              const midX = rx + rw / 2;
+              ctx.strokeStyle = "rgba(255,255,255,.4)";
+              ctx.lineWidth = 2;
+              ctx.setLineDash([6, 6]);
+              ctx.beginPath();
+              ctx.moveTo(midX, ry);
+              ctx.lineTo(midX, ry + rh);
+              ctx.stroke();
+              ctx.setLineDash([]);
+              ctx.fillStyle = "rgba(108,99,255,.8)";
+              ctx.font = "bold 12px system-ui";
+              ctx.textAlign = "center";
+              ctx.fillText("P1", rx + rw / 4, ry + 20);
+              ctx.fillStyle = "rgba(255,101,132,.8)";
+              ctx.fillText("P2", rx + (3 * rw) / 4, ry + 20);
+              ctx.textAlign = "left";
+            }
+            ctx.fillStyle = "rgba(255,255,255,.9)";
+            ctx.font = "bold 14px system-ui";
+            ctx.textAlign = "center";
+            ctx.fillText(
+              "✊ Kepal untuk foto!",
+              W / 2,
+              ry > 30 ? ry - 10 : ry + rh + 24,
+            );
+            ctx.textAlign = "left";
+          }
+        } else {
+          S.frameRect = null;
+          if (!S.h1 && !S.h2) {
+            // No hands: show instruction
+            ctx.fillStyle = "rgba(255,255,255,.7)";
+            ctx.font = "bold 15px system-ui";
+            ctx.textAlign = "center";
+            ctx.fillText("👐 Tampilkan tangan di depan kamera", W / 2, H - 80);
+            ctx.textAlign = "left";
+          }
+        }
+      }
+
+      // Cooldown to prevent double capture
+      let camCaptureCooldown = false;
+      let camPinch1Prev = false,
+        camPinch2Prev = false;
+
+      function showPinchIndicator(x, y) {
+        const el = $("pinch-indicator");
+        if (!el) return;
+        el.style.left = x * window.innerWidth + "px";
+        el.style.top = y * window.innerHeight + "px";
+        el.style.transform = "translate(-50%,-50%)";
+        el.classList.add("show");
+        setTimeout(() => el.classList.remove("show"), 600);
+      }
+
+      function addRipple(el, x, y) {
+        const r = el.getBoundingClientRect();
+        const ripple = document.createElement("span");
+        ripple.className = "ripple";
+        const size = Math.max(r.width, r.height);
+        ripple.style.cssText = `width:${size}px;height:${size}px;left:${x - r.left - size / 2}px;top:${y - r.top - size / 2}px`;
+        el.style.position = "relative";
+        el.style.overflow = "hidden";
+        el.appendChild(ripple);
+        setTimeout(() => ripple.remove(), 600);
+      }
+
+      function handleCameraGesture() {
+        if (camCaptureCooldown) return;
+
+        const p1 = S.h1 && S.h1.isPinching;
+        const p2 = S.h2 && S.h2.isPinching;
+
+        // Detect pinch START (transition false -> true) = CAPTURE
+        if ((p1 && !camPinch1Prev) || (p2 && !camPinch2Prev)) {
+          const h = p1 ? S.h1 : S.h2;
+          showPinchIndicator(h.ix, h.iy);
+          camCaptureCooldown = true;
+          setTimeout(() => (camCaptureCooldown = false), 2500);
+          setTimeout(() => App.capturePhoto(), 150); // slight delay for visual
+          // Lock gestures for 2s after capture so user doesn't accidentally trigger diff screen
+          lockGestures(2200);
+        }
+
+        camPinch1Prev = !!p1;
+        camPinch2Prev = !!p2;
+      }
+
+      // ── Difficulty Screen Gesture ─────────────────────────
+      const diffHoverTimers = {};
+      let diffPinch1Prev = false,
+        diffPinch2Prev = false;
+
+      function handleDiffGesture() {
+        const opts = document.querySelectorAll(".diff-opt");
+        const now = Date.now();
+
+        [S.h1, S.h2].forEach((h, hi) => {
+          if (!h) return;
+          const sx = h.ix * window.innerWidth;
+          const sy = h.iy * window.innerHeight;
+          const hoverClass = hi === 0 ? "hover" : "hover2";
+
+          opts.forEach((opt) => {
+            const r = opt.getBoundingClientRect();
+            const inside =
+              sx >= r.left && sx <= r.right && sy >= r.top && sy <= r.bottom;
+            const key =
+              "h" + hi + "_" + opt.dataset.diff + "_" + opt.dataset.mode;
+
+            if (inside) {
+              opt.classList.add(hoverClass);
+              if (!diffHoverTimers[key]) diffHoverTimers[key] = now;
+              const elapsed = now - diffHoverTimers[key];
+              const pct = Math.min(elapsed / HOVER_HOLD_MS, 1);
+
+              // Update progress ring
+              const ring = opt.querySelector(".prog-ring circle");
+              if (ring) {
+                ring.style.strokeDashoffset = 75.4 * (1 - pct);
+                ring.parentElement.classList.add("show");
+                ring.style.stroke = hi === 0 ? "#6C63FF" : "#FF6584";
+              }
+
+              // Pinch stability: require pinch to be held for 3 consecutive frames
+              if (!opt._pinchFrames) opt._pinchFrames = 0;
+              if (h.isPinching) opt._pinchFrames++;
+              else opt._pinchFrames = 0;
+              const stablePinch = opt._pinchFrames >= 3;
+
+              // Activate on STABLE PINCH (3 frames) or hold timeout
+              if (stablePinch || elapsed >= HOVER_HOLD_MS) {
+                if (!opt._activating) {
+                  opt._activating = true;
+                  opt._pinchFrames = 0;
+                  opt.classList.add("activated");
+                  showPinchIndicator(h.ix, h.iy);
+                  addRipple(opt, sx, sy);
+                  const diff = opt.dataset.diff;
+                  const mode = opt.dataset.mode;
+                  delete diffHoverTimers[key];
+                  setTimeout(() => {
+                    opt._activating = false;
+                    App.selectDiff(diff, mode);
+                  }, 300);
+                }
+              }
+            } else {
+              opt.classList.remove(hoverClass);
+              opt._activating = false;
+              delete diffHoverTimers[key];
+              const ring = opt.querySelector(".prog-ring circle");
+              if (ring) {
+                ring.style.strokeDashoffset = "75.4";
+                ring.parentElement.classList.remove("show");
+              }
+            }
+          });
+        });
+      }
+
+      // ── Game Screen Gesture ───────────────────────────────
+      let g1PinchPrev = false,
+        g2PinchPrev = false;
+      let previewHeld = false;
+
+      // Gesture baru:
+      //   PINCH (cubit) = ambil kepingan / mulai drag
+      //   FIST (genggam, semua jari tertutup) = lepas / drop kepingan
+      //
+      // State machine per tangan:
+      //   idle -> pinching (ambil) -> fist (lepas) -> idle
+      //   idle -> pinching (ambil) -> idle (tangan hilang = lepas)
+
+      // Debounce: butuh N frame berturut-turut sebelum gesture dianggap valid
+      const _pinchFrames = { h1: 0, h2: 0 };   // counter frame pinch
+      const _fistFrames  = { h1: 0, h2: 0 };   // counter frame fist
+      const PINCH_FRAMES_NEEDED = 2;  // frame pinch untuk mulai drag
+      const FIST_FRAMES_NEEDED  = 2;  // frame fist untuk drop
+
+      function handleGameGesture() {
+        if (S.paused) {
+          checkGameButtons();
+          return;
+        }
+
+        const cv = $("game-canvas");
+        if (!cv) return;
+        const rect = cv.getBoundingClientRect();
+        const scaleX = cv.width / rect.width;
+        const scaleY = cv.height / rect.height;
+
+        const toCanvas = (h) => ({
+          x: (h.ix * window.innerWidth - rect.left) * scaleX,
+          y: (h.iy * window.innerHeight - rect.top) * scaleY,
+        });
+
+        // PINCH = ambil kepingan, FIST = lepas kepingan
+        const processHand = (h, dragKey, player) => {
+          const hKey = dragKey === "drag1" ? "h1" : "h2";
+
+          if (!h) {
+            // Tangan hilang: drop jika sedang drag
+            if (S[dragKey]) endDrag(dragKey, player);
+            handState[hKey] = "idle";
+            _pinchFrames[hKey] = 0;
+            _fistFrames[hKey] = 0;
+            return;
+          }
+
+          const { x, y } = toCanvas(h);
+          const prevState = handState[hKey];
+
+          // Hitung finger extension untuk deteksi fist
+          // isClosed dari makeHand: extCount <= 1 || isPinching
+          // Kita butuh fist TANPA pinch (semua jari tertutup, bukan cubit)
+          const isFist = h.isClosed && !h.isPinching;
+          const isPinch = h.isPinching;
+
+          if (isPinch) {
+            // PINCH: ambil kepingan
+            _pinchFrames[hKey]++;
+            _fistFrames[hKey] = 0;
+
+            if (_pinchFrames[hKey] >= PINCH_FRAMES_NEEDED) {
+              if (prevState !== "pinch") {
+                // Mulai drag: ambil kepingan di posisi tangan
+                startDrag(h, x, y, dragKey);
+                handState[hKey] = "pinch";
+              } else if (S[dragKey]) {
+                // Lanjut drag: gerakkan kepingan
+                moveDrag(x, y, dragKey, player);
+              }
+            } else if (S[dragKey]) {
+              moveDrag(x, y, dragKey, player);
+            }
+
+          } else if (isFist) {
+            // FIST: lepas kepingan
+            _fistFrames[hKey]++;
+            _pinchFrames[hKey] = 0;
+
+            if (_fistFrames[hKey] >= FIST_FRAMES_NEEDED) {
+              if (prevState === "pinch" && S[dragKey]) {
+                // Drop kepingan ke slot terdekat
+                endDrag(dragKey, player);
+              }
+              handState[hKey] = "fist";
+            } else if (S[dragKey]) {
+              // Belum cukup frame fist, tetap gerakkan
+              moveDrag(x, y, dragKey, player);
+            }
+
+          } else {
+            // Tangan terbuka / neutral: reset counter
+            _pinchFrames[hKey] = Math.max(0, _pinchFrames[hKey] - 1);
+            _fistFrames[hKey] = Math.max(0, _fistFrames[hKey] - 1);
+
+            // Jika sebelumnya fist dan sekarang terbuka: kembali ke idle
+            if (prevState === "fist") {
+              handState[hKey] = "idle";
+            }
+
+            // Tetap gerakkan kepingan jika masih dalam state pinch
+            if (prevState === "pinch" && S[dragKey]) {
+              moveDrag(x, y, dragKey, player);
+            }
+          }
+        };
+          }
+        };
+
+        if (S.is2P) {
+          processHand(S.h1, "drag1", "p1");
+          processHand(S.h2, "drag2", "p2");
+        } else {
+          processHand(S.h1, "drag1", null);
+          // h2 = preview: open hand = show preview
+          if (S.h2) {
+            S.previewActive = S.h2.isOpen;
+          } else {
+            S.previewActive = false;
+          }
+        }
+
+        checkGameButtons();
+      }
+
+      const gameBtnHover = {};
+      // checkGameButtons didefinisikan di script block berikutnya (versi lengkap dengan exit confirmation)
+
+      // ── Result Screen Gesture ─────────────────────────────
+      const resultBtnHover = {};
+      function handleResultGesture() {
+        const btns = document.querySelectorAll("#res-btns .g-btn");
+        const now = Date.now();
+        [S.h1, S.h2].forEach((h, hi) => {
+          if (!h) return;
+          const sx = h.ix * window.innerWidth,
+            sy = h.iy * window.innerHeight;
+          btns.forEach((btn) => {
+            const r = btn.getBoundingClientRect();
+            const inside =
+              sx >= r.left && sx <= r.right && sy >= r.top && sy <= r.bottom;
+            const key = "h" + hi + "_" + btn.dataset.action;
+            if (inside) {
+              btn.classList.add(hi === 0 ? "hover" : "hover2");
+              if (!resultBtnHover[key]) resultBtnHover[key] = now;
+              const elapsed = now - resultBtnHover[key];
+              if (h.isPinching || elapsed >= HOVER_HOLD_MS) {
+                btn.classList.add("activated");
+                const action = btn.dataset.action;
+                delete resultBtnHover[key];
+                setTimeout(() => {
+                  if (action === "again") App.playAgain();
+                  else if (action === "home") App.goHome();
+                }, 100);
+              }
+            } else {
+              btn.classList.remove("hover", "hover2");
+              delete resultBtnHover[key];
+            }
+          });
+        });
+      }
+    </script>
+
+    <script>
+      // ═══════════════════════════════════════════════════════
+      // APP — Main application logic
+      // ═══════════════════════════════════════════════════════
+
+      const App = {
+        // ── Init ──
+        async init() {
+          // Just show home screen, don't load MediaPipe yet
+          showScreen("home");
+        },
+
+        // Called when user clicks Start button
+        async startApp() {
+          showScreen("loading");
+          // Bersihkan retry button lama jika ada
+          const oldBtn = $("screen-loading").querySelector("button");
+          if (oldBtn) oldBtn.remove();
+          // Reset error flag untuk retry
+          window._mpLoadError = false;
+
+          try {
+            await initMediaPipe();
+          } catch (err) {
+            $("load-status").textContent = "❌ " + err.message;
+            $("load-status").style.color = "#FF6584";
+            $("load-bar").style.background = "#FF6584";
+            $("load-bar").style.width = "100%";
+            // Show retry button
+            const retryBtn = document.createElement("button");
+            retryBtn.id = "retry-btn";
+            retryBtn.textContent = "🔄 Coba Lagi";
+            retryBtn.style.cssText =
+              "margin-top:1rem;padding:.75rem 2rem;background:#6C63FF;color:#fff;border:none;border-radius:12px;font-size:1rem;cursor:pointer";
+            retryBtn.onclick = () => {
+              retryBtn.remove();
+              App.startApp();
+            };
+            $("screen-loading").appendChild(retryBtn);
+          }
+        },
+
+        // ── Home / Navigation ──
+        goHome() {
+          clearInterval(S.timer);
+          if (S.animId) {
+            cancelAnimationFrame(S.animId);
+            S.animId = null;
+          }
+          S.pieces = [];
+          S.drag1 = null;
+          S.drag2 = null;
+          S.previewActive = false;
+          // Reset hand states
+          handState.h1 = "idle";
+          handState.h2 = "idle";
+          // DON'T stop camera — MediaPipe needs it running
+          // Go to home screen
+          showScreen("home");
+        },
+
+        // Go to camera (called from home or after result)
+        goCamera() {
+          // Ensure cam-video has the stream
+          const cv = $("cam-video");
+          if (S.stream && cv.srcObject !== S.stream) {
+            cv.srcObject = S.stream;
+            cv.play().catch(() => {});
+          } else if (cv.paused && S.stream) {
+            cv.play().catch(() => {});
+          }
+          showScreen("camera");
+          setupCameraScreen();
+        },
+
+        // ── Camera ──
+        capturePhoto() {
+          const v = $("cam-video");
+          if (!v || v.readyState < 2) {
+            toast("Kamera belum siap");
+            return;
+          }
+          const w = v.videoWidth || 640,
+            h = v.videoHeight || 480;
+          const c = mkCanvas(w, h),
+            ctx = c.getContext("2d");
+          ctx.translate(w, 0);
+          ctx.scale(-1, 1);
+          ctx.drawImage(v, 0, 0, w, h);
+          S.captData = ctx.getImageData(0, 0, w, h);
+          // Flash effect
+          const fl = document.createElement("div");
+          fl.style.cssText =
+            "position:fixed;inset:0;background:#fff;z-index:9999;opacity:.8;pointer-events:none;transition:opacity 300ms";
+          document.body.appendChild(fl);
+          setTimeout(() => (fl.style.opacity = "0"), 50);
+          setTimeout(() => fl.remove(), 400);
+          // Go to difficulty
+          App.showDiffScreen();
+        },
+
+        // ── Difficulty ──
+        showDiffScreen() {
+          // Lock gestures for 2s — prevents accidental selection after photo capture
+          lockGestures(2000);
+          // Attach camera to diff-video for background
+          const dv = $("diff-video");
+          if (S.stream) {
+            dv.srcObject = S.stream;
+            dv.play().catch(() => {});
+          }
+          // Build difficulty options
+          const opts = $("diff-opts");
+          opts.innerHTML = "";
+          const modes = [
+            {
+              diff: "easy",
+              mode: "single",
+              icon: "😊",
+              name: "Mudah",
+              det: "3×3 · 5 menit · Solo",
+            },
+            {
+              diff: "medium",
+              mode: "single",
+              icon: "😤",
+              name: "Sedang",
+              det: "4×4 · 3 menit · Solo",
+            },
+            {
+              diff: "hard",
+              mode: "single",
+              icon: "🔥",
+              name: "Sulit",
+              det: "5×5 · 2 menit · Solo",
+            },
+            {
+              diff: "medium",
+              mode: "2p",
+              icon: "👥",
+              name: "2 Pemain",
+              det: "4×4 · 3 menit · Layar Bagi",
+            },
+          ];
+          modes.forEach((m) => {
+            const div = document.createElement("div");
+            div.className = "diff-opt";
+            div.dataset.diff = m.diff;
+            div.dataset.mode = m.mode;
+            div.innerHTML = `
         <div class="d-icon">${m.icon}</div>
         <div class="d-name">${m.name}</div>
         <div class="d-det">${m.det}</div>
@@ -1523,260 +2050,322 @@ const App = {
           <circle cx="14" cy="14" r="12" stroke-dasharray="75.4" stroke-dashoffset="75.4"/>
         </svg>
       `;
-      opts.appendChild(div);
-    });
-    $('diff-subtitle').textContent = 'Arahkan tangan ke pilihan + Pinch atau tahan untuk memilih';
-    // Show lock countdown
-    const subEl = $('diff-subtitle');
-    let remaining = 2;
-    const countInterval = setInterval(() => {
-      remaining--;
-      if (remaining > 0) {
-        subEl.textContent = `⏳ Bersiap... (${remaining}s) — jangan cubit dulu`;
-        subEl.style.color = '#FF8906';
-      } else {
-        subEl.textContent = 'Arahkan tangan ke pilihan + Cubit atau tahan untuk memilih';
-        subEl.style.color = '';
-        clearInterval(countInterval);
-      }
-    }, 1000);
-    showScreen('diff');
-  },
-
-  selectDiff(diff, mode) {
-    S.diff = diff;
-    S.is2P = mode === '2p';
-    App.startGame();
-  },
-
-  // ── Game ──
-  startGame() {
-    if (!S.captData) { toast('Foto belum diambil'); return; }
-    // Build pieces
-    S.pieces = buildPieces(S.captData, S.diff);
-    S.placed = 0; S.placed1 = 0; S.placed2 = 0;
-    S.paused = false; S.drag1 = null; S.drag2 = null;
-    S.previewActive = false;
-    S.timeLeft = DIFF_CFG[S.diff].t;
-    g1PinchPrev = false; g2PinchPrev = false;
-
-    showScreen('game');
-
-    // Setup canvas
-    const cv = $('game-canvas');
-    cv.width = window.innerWidth; cv.height = window.innerHeight;
-    S.layout = calcLayout(cv.width, cv.height, DIFF_CFG[S.diff].g, S.is2P);
-    layoutHold(S.pieces, S.layout);
-
-    // AR: attach stream to game-video
-    const gv = $('game-video');
-    if (S.stream) {
-      gv.srcObject = S.stream;
-      gv.play().catch(()=>{});
-    }
-
-    // Show gesture hint
-    showGestureHint(
-      S.is2P
-        ? '👐 Buka tangan = grab kepingan &nbsp;|&nbsp; ✊ Kepal = lepas'
-        : '👐 Buka tangan = grab &nbsp;|&nbsp; ✊ Kepal = lepas &nbsp;|&nbsp; 👐 Tangan kanan = pratinjau',
-      4000
-    );
-    // HUD
-    $('hud-mode').textContent = S.is2P ? '2 Pemain' : 'Solo';
-    $('p1-label').style.display = S.is2P ? 'block' : 'none';
-    $('p2-label').style.display = S.is2P ? 'block' : 'none';
-    updateHUD();
-
-    // Game gesture buttons
-    const btnsEl = $('game-btns');
-    btnsEl.innerHTML = '';
-    const gameBtns = [
-      { action:'preview', icon:'👁', label:'Pratinjau', hint:'Tahan' },
-      { action:'pause',   icon:'⏸', label:'Jeda',      hint:'Pinch/Tahan' },
-      { action:'exit',    icon:'✕',  label:'Keluar',    hint:'Pinch/Tahan' },
-    ];
-    gameBtns.forEach(b => {
-      const el = document.createElement('div');
-      el.className = 'g-btn';
-      el.dataset.action = b.action;
-      el.innerHTML = `
-        <span class="icon">${b.icon}</span>
-        <span class="label">${b.label}</span>
-        <span class="hint">${b.hint}</span>
-        <svg class="prog-ring" viewBox="0 0 28 28">
-          <circle cx="14" cy="14" r="12" stroke-dasharray="75.4" stroke-dashoffset="75.4"/>
-        </svg>
-      `;
-      btnsEl.appendChild(el);
-    });
-
-    // Timer
-    clearInterval(S.timer);
-    S.timer = setInterval(() => {
-      if (S.paused) return;
-      S.timeLeft = Math.max(0, S.timeLeft-1);
-      updateHUD();
-      if (S.timeLeft <= 0) { clearInterval(S.timer); App.onTimeUp(); }
-    }, 1000);
-
-    // Render loop
-    if (S.animId) cancelAnimationFrame(S.animId);
-    S.animId = requestAnimationFrame(render);
-  },
-
-  togglePause() {
-    S.paused = !S.paused;
-    if (S.paused) {
-      toast('⏸ Dijeda — Pinch tombol Jeda lagi untuk lanjut', 3000);
-    } else {
-      toast('▶ Lanjut!', 1000);
-    }
-  },
-
-  confirmExit() {
-    // Show exit confirmation as gesture buttons
-    toast('Pinch tombol Keluar lagi dalam 3 detik untuk konfirmasi', 3000);
-    const exitBtn = document.querySelector('#game-btns [data-action="exit"]');
-    if (exitBtn) {
-      exitBtn.querySelector('.hint').textContent = 'Pinch lagi!';
-      exitBtn.style.borderColor = '#E53170';
-      setTimeout(() => {
-        if (exitBtn) {
-          exitBtn.querySelector('.hint').textContent = 'Pinch/Tahan';
-          exitBtn.style.borderColor = '';
-        }
-      }, 3000);
-    }
-    // Second pinch within 3s = exit
-    App._exitPending = true;
-    setTimeout(() => App._exitPending = false, 3000);
-  },
-
-  doExit() {
-    clearInterval(S.timer);
-    if (S.animId) { cancelAnimationFrame(S.animId); S.animId = null; }
-    App.goHome();
-  },
-
-  onTimeUp() {
-    if (S.animId) { cancelAnimationFrame(S.animId); S.animId = null; }
-    App.showResult(false, null);
-  },
-
-  onWin(winner) {
-    clearInterval(S.timer);
-    if (S.animId) { cancelAnimationFrame(S.animId); S.animId = null; }
-    confetti();
-    App.showResult(true, winner);
-  },
-
-  showResult(won, winner) {
-    const cfg = DIFF_CFG[S.diff];
-    const elapsed = cfg.t - S.timeLeft;
-    let score = 0;
-    if (won) {
-      if (S.is2P) {
-        // Both players get score based on their pieces
-        score = S.placed1 * 100 + S.placed2 * 100 + S.timeLeft * 5;
-      } else {
-        score = S.timeLeft * 10 + cfg.b;
-      }
-    }
-    $('res-emoji').textContent = won ? '🎉' : '⏰';
-    $('res-title').textContent = won
-      ? (S.is2P ? '🎊 Puzzle Selesai!' : '🎉 Selamat!')
-      : '⏰ Waktu Habis!';
-    $('res-score').textContent = score.toLocaleString('id-ID');
-    let det = 'Waktu: ' + fmt(elapsed) + ' · ' + cfg.n + ' kepingan';
-    if (S.is2P) det += ` · P1:${S.placed1} P2:${S.placed2}`;
-    $('res-det').textContent = det;
-
-    // Result buttons
-    const btnsEl = $('res-btns');
-    btnsEl.innerHTML = '';
-    [
-      { action:'again', icon:'🔄', label:'Main Lagi', hint:'Pinch/Tahan' },
-      { action:'home',  icon:'🏠', label:'Menu',      hint:'Pinch/Tahan' },
-    ].forEach(b => {
-      const el = document.createElement('div');
-      el.className = 'g-btn';
-      el.dataset.action = b.action;
-      el.style.cssText = 'position:relative;min-width:130px';
-      el.innerHTML = `
-        <span class="icon">${b.icon}</span>
-        <span class="label">${b.label}</span>
-        <span class="hint">${b.hint}</span>
-        <svg class="prog-ring" viewBox="0 0 28 28">
-          <circle cx="14" cy="14" r="12" stroke-dasharray="75.4" stroke-dashoffset="75.4"/>
-        </svg>
-      `;
-      btnsEl.appendChild(el);
-    });
-
-    showScreen('result');
-  },
-
-  playAgain() {
-    clearInterval(S.timer);
-    if (S.animId) { cancelAnimationFrame(S.animId); S.animId = null; }
-    S.pieces = []; S.drag1 = null; S.drag2 = null;
-    handState.h1 = 'idle'; handState.h2 = 'idle';
-    App.goCamera();
-  },
-};
-
-// ── Exit double-pinch handler ─────────────────────────
-// Patch checkGameButtons to handle exit confirmation
-const _origCheckGameBtns = checkGameButtons;
-function checkGameButtons() {
-  const btns = document.querySelectorAll('#game-btns .g-btn');
-  const now = Date.now();
-  [S.h1, S.h2].forEach((h, hi) => {
-    if (!h) return;
-    const sx = h.ix * window.innerWidth, sy = h.iy * window.innerHeight;
-    btns.forEach(btn => {
-      const r = btn.getBoundingClientRect();
-      const inside = sx>=r.left && sx<=r.right && sy>=r.top && sy<=r.bottom;
-      const key = 'h'+hi+'_'+btn.dataset.action;
-      if (inside) {
-        btn.classList.add(hi===0?'hover':'hover2');
-        if (!gameBtnHover[key]) gameBtnHover[key] = now;
-        const elapsed = now - gameBtnHover[key];
-        const ring = btn.querySelector('.prog-ring circle');
-        if (ring) {
-          const pct = Math.min(elapsed/HOVER_HOLD_MS,1);
-          ring.style.strokeDashoffset = 75.4*(1-pct);
-          ring.parentElement.classList.add('show');
-          ring.style.stroke = hi===0?'#6C63FF':'#FF6584';
-        }
-        if (h.isPinching || elapsed >= HOVER_HOLD_MS) {
-          btn.classList.add('activated');
-          const action = btn.dataset.action;
-          delete gameBtnHover[key];
-          setTimeout(() => {
-            if (action==='pause') App.togglePause();
-            else if (action==='exit') {
-              if (App._exitPending) { App._exitPending=false; App.doExit(); }
-              else App.confirmExit();
+            opts.appendChild(div);
+          });
+          $("diff-subtitle").textContent =
+            "Arahkan tangan ke pilihan + Pinch atau tahan untuk memilih";
+          // Show lock countdown
+          const subEl = $("diff-subtitle");
+          let remaining = 2;
+          const countInterval = setInterval(() => {
+            remaining--;
+            if (remaining > 0) {
+              subEl.textContent = `⏳ Bersiap... (${remaining}s) — jangan cubit dulu`;
+              subEl.style.color = "#FF8906";
+            } else {
+              subEl.textContent =
+                "Arahkan tangan ke pilihan + Cubit atau tahan untuk memilih";
+              subEl.style.color = "";
+              clearInterval(countInterval);
             }
-            else if (action==='preview') S.previewActive = !S.previewActive;
-          }, 100);
-        }
-      } else {
-        btn.classList.remove('hover','hover2');
-        delete gameBtnHover[key];
-        const ring = btn.querySelector('.prog-ring circle');
-        if (ring) { ring.style.strokeDashoffset='75.4'; ring.parentElement.classList.remove('show'); }
+          }, 1000);
+          showScreen("diff");
+        },
+
+        selectDiff(diff, mode) {
+          S.diff = diff;
+          S.is2P = mode === "2p";
+          App.startGame();
+        },
+
+        // ── Game ──
+        startGame() {
+          if (!S.captData) {
+            toast("Foto belum diambil");
+            return;
+          }
+          // Build pieces
+          S.pieces = buildPieces(S.captData, S.diff);
+          S.placed = 0;
+          S.placed1 = 0;
+          S.placed2 = 0;
+          S.paused = false;
+          S.drag1 = null;
+          S.drag2 = null;
+          S.previewActive = false;
+          S.timeLeft = DIFF_CFG[S.diff].t;
+          g1PinchPrev = false;
+          g2PinchPrev = false;
+          // Reset debounce counters (gesture baru: pinch=ambil, fist=lepas)
+          _pinchFrames.h1 = 0;
+          _pinchFrames.h2 = 0;
+          _fistFrames.h1 = 0;
+          _fistFrames.h2 = 0;
+          handState.h1 = "idle";
+          handState.h2 = "idle";
+
+          showScreen("game");
+
+          // Setup canvas
+          const cv = $("game-canvas");
+          cv.width = window.innerWidth;
+          cv.height = window.innerHeight;
+          S.layout = calcLayout(
+            cv.width,
+            cv.height,
+            DIFF_CFG[S.diff].g,
+            S.is2P,
+          );
+          layoutHold(S.pieces, S.layout);
+
+          // AR: attach stream to game-video
+          const gv = $("game-video");
+          if (S.stream) {
+            gv.srcObject = S.stream;
+            gv.play().catch(() => {});
+          }
+
+          // Show gesture hint
+          showGestureHint(
+            S.is2P
+              ? "🤏 Cubit = ambil kepingan &nbsp;|&nbsp; ✊ Genggam = lepas"
+              : "🤏 Cubit = ambil kepingan &nbsp;|&nbsp; ✊ Genggam = lepas &nbsp;|&nbsp; 👐 Tangan kanan = pratinjau",
+            5000,
+          );
+          // HUD
+          $("hud-mode").textContent = S.is2P ? "2 Pemain" : "Solo";
+          $("p1-label").style.display = S.is2P ? "block" : "none";
+          $("p2-label").style.display = S.is2P ? "block" : "none";
+          updateHUD();
+
+          // Game gesture buttons
+          const btnsEl = $("game-btns");
+          btnsEl.innerHTML = "";
+          const gameBtns = [
+            {
+              action: "preview",
+              icon: "👁",
+              label: "Pratinjau",
+              hint: "Tahan",
+            },
+            { action: "pause", icon: "⏸", label: "Jeda", hint: "Pinch/Tahan" },
+            { action: "exit", icon: "✕", label: "Keluar", hint: "Pinch/Tahan" },
+          ];
+          gameBtns.forEach((b) => {
+            const el = document.createElement("div");
+            el.className = "g-btn";
+            el.dataset.action = b.action;
+            el.innerHTML = `
+        <span class="icon">${b.icon}</span>
+        <span class="label">${b.label}</span>
+        <span class="hint">${b.hint}</span>
+        <svg class="prog-ring" viewBox="0 0 28 28">
+          <circle cx="14" cy="14" r="12" stroke-dasharray="75.4" stroke-dashoffset="75.4"/>
+        </svg>
+      `;
+            btnsEl.appendChild(el);
+          });
+
+          // Timer
+          clearInterval(S.timer);
+          S.timer = setInterval(() => {
+            if (S.paused) return;
+            S.timeLeft = Math.max(0, S.timeLeft - 1);
+            updateHUD();
+            if (S.timeLeft <= 0) {
+              clearInterval(S.timer);
+              App.onTimeUp();
+            }
+          }, 1000);
+
+          // Render loop
+          if (S.animId) cancelAnimationFrame(S.animId);
+          S.animId = requestAnimationFrame(render);
+        },
+
+        togglePause() {
+          S.paused = !S.paused;
+          if (S.paused) {
+            toast("⏸ Dijeda — Pinch tombol Jeda lagi untuk lanjut", 3000);
+          } else {
+            toast("▶ Lanjut!", 1000);
+          }
+        },
+
+        confirmExit() {
+          // Show exit confirmation as gesture buttons
+          toast(
+            "Pinch tombol Keluar lagi dalam 3 detik untuk konfirmasi",
+            3000,
+          );
+          const exitBtn = document.querySelector(
+            '#game-btns [data-action="exit"]',
+          );
+          if (exitBtn) {
+            exitBtn.querySelector(".hint").textContent = "Pinch lagi!";
+            exitBtn.style.borderColor = "#E53170";
+            setTimeout(() => {
+              if (exitBtn) {
+                exitBtn.querySelector(".hint").textContent = "Pinch/Tahan";
+                exitBtn.style.borderColor = "";
+              }
+            }, 3000);
+          }
+          // Second pinch within 3s = exit
+          App._exitPending = true;
+          setTimeout(() => (App._exitPending = false), 3000);
+        },
+
+        doExit() {
+          clearInterval(S.timer);
+          if (S.animId) {
+            cancelAnimationFrame(S.animId);
+            S.animId = null;
+          }
+          App.goHome();
+        },
+
+        onTimeUp() {
+          if (S.animId) {
+            cancelAnimationFrame(S.animId);
+            S.animId = null;
+          }
+          App.showResult(false, null);
+        },
+
+        onWin(winner) {
+          clearInterval(S.timer);
+          if (S.animId) {
+            cancelAnimationFrame(S.animId);
+            S.animId = null;
+          }
+          confetti();
+          App.showResult(true, winner);
+        },
+
+        showResult(won, winner) {
+          const cfg = DIFF_CFG[S.diff];
+          const elapsed = cfg.t - S.timeLeft;
+          let score = 0;
+          if (won) {
+            if (S.is2P) {
+              // Both players get score based on their pieces
+              score = S.placed1 * 100 + S.placed2 * 100 + S.timeLeft * 5;
+            } else {
+              score = S.timeLeft * 10 + cfg.b;
+            }
+          }
+          $("res-emoji").textContent = won ? "🎉" : "⏰";
+          $("res-title").textContent = won
+            ? S.is2P
+              ? "🎊 Puzzle Selesai!"
+              : "🎉 Selamat!"
+            : "⏰ Waktu Habis!";
+          $("res-score").textContent = score.toLocaleString("id-ID");
+          let det = "Waktu: " + fmt(elapsed) + " · " + cfg.n + " kepingan";
+          if (S.is2P) det += ` · P1:${S.placed1} P2:${S.placed2}`;
+          $("res-det").textContent = det;
+
+          // Result buttons
+          const btnsEl = $("res-btns");
+          btnsEl.innerHTML = "";
+          [
+            {
+              action: "again",
+              icon: "🔄",
+              label: "Main Lagi",
+              hint: "Pinch/Tahan",
+            },
+            { action: "home", icon: "🏠", label: "Menu", hint: "Pinch/Tahan" },
+          ].forEach((b) => {
+            const el = document.createElement("div");
+            el.className = "g-btn";
+            el.dataset.action = b.action;
+            el.style.cssText = "position:relative;min-width:130px";
+            el.innerHTML = `
+        <span class="icon">${b.icon}</span>
+        <span class="label">${b.label}</span>
+        <span class="hint">${b.hint}</span>
+        <svg class="prog-ring" viewBox="0 0 28 28">
+          <circle cx="14" cy="14" r="12" stroke-dasharray="75.4" stroke-dashoffset="75.4"/>
+        </svg>
+      `;
+            btnsEl.appendChild(el);
+          });
+
+          showScreen("result");
+        },
+
+        playAgain() {
+          clearInterval(S.timer);
+          if (S.animId) {
+            cancelAnimationFrame(S.animId);
+            S.animId = null;
+          }
+          S.pieces = [];
+          S.drag1 = null;
+          S.drag2 = null;
+          handState.h1 = "idle";
+          handState.h2 = "idle";
+          App.goCamera();
+        },
+      };
+
+      // ── Exit double-pinch handler ─────────────────────────
+      function checkGameButtons() {
+        const btns = document.querySelectorAll("#game-btns .g-btn");
+        const now = Date.now();
+        [S.h1, S.h2].forEach((h, hi) => {
+          if (!h) return;
+          const sx = h.ix * window.innerWidth,
+            sy = h.iy * window.innerHeight;
+          btns.forEach((btn) => {
+            const r = btn.getBoundingClientRect();
+            const inside =
+              sx >= r.left && sx <= r.right && sy >= r.top && sy <= r.bottom;
+            const key = "h" + hi + "_" + btn.dataset.action;
+            if (inside) {
+              btn.classList.add(hi === 0 ? "hover" : "hover2");
+              if (!gameBtnHover[key]) gameBtnHover[key] = now;
+              const elapsed = now - gameBtnHover[key];
+              const ring = btn.querySelector(".prog-ring circle");
+              if (ring) {
+                const pct = Math.min(elapsed / HOVER_HOLD_MS, 1);
+                ring.style.strokeDashoffset = 75.4 * (1 - pct);
+                ring.parentElement.classList.add("show");
+                ring.style.stroke = hi === 0 ? "#6C63FF" : "#FF6584";
+              }
+              if (h.isPinching || elapsed >= HOVER_HOLD_MS) {
+                btn.classList.add("activated");
+                const action = btn.dataset.action;
+                delete gameBtnHover[key];
+                setTimeout(() => {
+                  if (action === "pause") App.togglePause();
+                  else if (action === "exit") {
+                    if (App._exitPending) {
+                      App._exitPending = false;
+                      App.doExit();
+                    } else App.confirmExit();
+                  } else if (action === "preview")
+                    S.previewActive = !S.previewActive;
+                }, 100);
+              }
+            } else {
+              btn.classList.remove("hover", "hover2");
+              delete gameBtnHover[key];
+              const ring = btn.querySelector(".prog-ring circle");
+              if (ring) {
+                ring.style.strokeDashoffset = "75.4";
+                ring.parentElement.classList.remove("show");
+              }
+            }
+          });
+        });
       }
-    });
-  });
-}
 
-// ── Start ─────────────────────────────────────────────
-window.addEventListener('resize', resizeCanvas);
-window.addEventListener('DOMContentLoaded', () => App.init());
-</script>
-</body>
+      // ── Start ─────────────────────────────────────────────
+      window.addEventListener("resize", resizeCanvas);
+      window.addEventListener("DOMContentLoaded", () => App.init());
+    </script>
+  </body>
 </html>
-
