@@ -1166,7 +1166,11 @@
         return new Promise(async (resolve, reject) => {
           // Cek apakah ada error saat load script CDN
           if (window._mpLoadError) {
-            reject(new Error("Gagal memuat MediaPipe dari CDN. Periksa koneksi internet."));
+            reject(
+              new Error(
+                "Gagal memuat MediaPipe dari CDN. Periksa koneksi internet.",
+              ),
+            );
             return;
           }
 
@@ -1175,19 +1179,30 @@
           let waited = 0;
           const maxWait = 15000;
           while (typeof Hands === "undefined" && waited < maxWait) {
-            await new Promise(res => setTimeout(res, 300));
+            await new Promise((res) => setTimeout(res, 300));
             waited += 300;
             if (window._mpLoadError) {
-              reject(new Error("Gagal memuat MediaPipe dari CDN. Periksa koneksi internet."));
+              reject(
+                new Error(
+                  "Gagal memuat MediaPipe dari CDN. Periksa koneksi internet.",
+                ),
+              );
               return;
             }
-            const pct = Math.min(20 + Math.floor(waited / maxWait * 15), 34);
-            setLoadStatus(`Memuat MediaPipe Hands... (${Math.floor(waited/1000)}s)`, pct);
+            const pct = Math.min(20 + Math.floor((waited / maxWait) * 15), 34);
+            setLoadStatus(
+              `Memuat MediaPipe Hands... (${Math.floor(waited / 1000)}s)`,
+              pct,
+            );
           }
 
           if (typeof Hands === "undefined") {
             reject(
-              new Error("MediaPipe tidak tersedia setelah " + (maxWait/1000) + "s. Periksa koneksi internet dan coba lagi."),
+              new Error(
+                "MediaPipe tidak tersedia setelah " +
+                  maxWait / 1000 +
+                  "s. Periksa koneksi internet dan coba lagi.",
+              ),
             );
             return;
           }
@@ -1741,10 +1756,10 @@
       //   idle -> pinching (ambil) -> idle (tangan hilang = lepas)
 
       // Debounce: butuh N frame berturut-turut sebelum gesture dianggap valid
-      const _pinchFrames = { h1: 0, h2: 0 };   // counter frame pinch
-      const _fistFrames  = { h1: 0, h2: 0 };   // counter frame fist
-      const PINCH_FRAMES_NEEDED = 2;  // frame pinch untuk mulai drag
-      const FIST_FRAMES_NEEDED  = 2;  // frame fist untuk drop
+      const _pinchFrames = { h1: 0, h2: 0 }; // counter frame pinch
+      const _fistFrames = { h1: 0, h2: 0 }; // counter frame fist
+      const PINCH_FRAMES_NEEDED = 2; // frame pinch untuk mulai drag
+      const FIST_FRAMES_NEEDED = 2; // frame fist untuk drop
 
       function handleGameGesture() {
         if (S.paused) {
@@ -1802,7 +1817,6 @@
             } else if (S[dragKey]) {
               moveDrag(x, y, dragKey, player);
             }
-
           } else if (isFist) {
             // FIST: lepas kepingan
             _fistFrames[hKey]++;
@@ -1818,7 +1832,6 @@
               // Belum cukup frame fist, tetap gerakkan
               moveDrag(x, y, dragKey, player);
             }
-
           } else {
             // Tangan terbuka / neutral: reset counter
             _pinchFrames[hKey] = Math.max(0, _pinchFrames[hKey] - 1);
@@ -1833,8 +1846,6 @@
             if (prevState === "pinch" && S[dragKey]) {
               moveDrag(x, y, dragKey, player);
             }
-          }
-        };
           }
         };
 
@@ -1855,7 +1866,56 @@
       }
 
       const gameBtnHover = {};
-      // checkGameButtons didefinisikan di script block berikutnya (versi lengkap dengan exit confirmation)
+      function checkGameButtons() {
+        const btns = document.querySelectorAll("#game-btns .g-btn");
+        const now = Date.now();
+        [S.h1, S.h2].forEach((h, hi) => {
+          if (!h) return;
+          const sx = h.ix * window.innerWidth,
+            sy = h.iy * window.innerHeight;
+          btns.forEach((btn) => {
+            const r = btn.getBoundingClientRect();
+            const inside =
+              sx >= r.left && sx <= r.right && sy >= r.top && sy <= r.bottom;
+            const key = "h" + hi + "_" + btn.dataset.action;
+            if (inside) {
+              btn.classList.add(hi === 0 ? "hover" : "hover2");
+              if (!gameBtnHover[key]) gameBtnHover[key] = now;
+              const elapsed = now - gameBtnHover[key];
+              const ring = btn.querySelector(".prog-ring circle");
+              if (ring) {
+                const pct = Math.min(elapsed / HOVER_HOLD_MS, 1);
+                ring.style.strokeDashoffset = 75.4 * (1 - pct);
+                ring.parentElement.classList.add("show");
+                ring.style.stroke = hi === 0 ? "#6C63FF" : "#FF6584";
+              }
+              if (h.isPinching || elapsed >= HOVER_HOLD_MS) {
+                btn.classList.add("activated");
+                const action = btn.dataset.action;
+                delete gameBtnHover[key];
+                setTimeout(() => {
+                  if (action === "pause") App.togglePause();
+                  else if (action === "exit") {
+                    if (App._exitPending) {
+                      App._exitPending = false;
+                      App.doExit();
+                    } else App.confirmExit();
+                  } else if (action === "preview")
+                    S.previewActive = !S.previewActive;
+                }, 100);
+              }
+            } else {
+              btn.classList.remove("hover", "hover2");
+              delete gameBtnHover[key];
+              const ring = btn.querySelector(".prog-ring circle");
+              if (ring) {
+                ring.style.strokeDashoffset = "75.4";
+                ring.parentElement.classList.remove("show");
+              }
+            }
+          });
+        });
+      }
 
       // ── Result Screen Gesture ─────────────────────────────
       const resultBtnHover = {};
@@ -2310,58 +2370,6 @@
           App.goCamera();
         },
       };
-
-      // ── Exit double-pinch handler ─────────────────────────
-      function checkGameButtons() {
-        const btns = document.querySelectorAll("#game-btns .g-btn");
-        const now = Date.now();
-        [S.h1, S.h2].forEach((h, hi) => {
-          if (!h) return;
-          const sx = h.ix * window.innerWidth,
-            sy = h.iy * window.innerHeight;
-          btns.forEach((btn) => {
-            const r = btn.getBoundingClientRect();
-            const inside =
-              sx >= r.left && sx <= r.right && sy >= r.top && sy <= r.bottom;
-            const key = "h" + hi + "_" + btn.dataset.action;
-            if (inside) {
-              btn.classList.add(hi === 0 ? "hover" : "hover2");
-              if (!gameBtnHover[key]) gameBtnHover[key] = now;
-              const elapsed = now - gameBtnHover[key];
-              const ring = btn.querySelector(".prog-ring circle");
-              if (ring) {
-                const pct = Math.min(elapsed / HOVER_HOLD_MS, 1);
-                ring.style.strokeDashoffset = 75.4 * (1 - pct);
-                ring.parentElement.classList.add("show");
-                ring.style.stroke = hi === 0 ? "#6C63FF" : "#FF6584";
-              }
-              if (h.isPinching || elapsed >= HOVER_HOLD_MS) {
-                btn.classList.add("activated");
-                const action = btn.dataset.action;
-                delete gameBtnHover[key];
-                setTimeout(() => {
-                  if (action === "pause") App.togglePause();
-                  else if (action === "exit") {
-                    if (App._exitPending) {
-                      App._exitPending = false;
-                      App.doExit();
-                    } else App.confirmExit();
-                  } else if (action === "preview")
-                    S.previewActive = !S.previewActive;
-                }, 100);
-              }
-            } else {
-              btn.classList.remove("hover", "hover2");
-              delete gameBtnHover[key];
-              const ring = btn.querySelector(".prog-ring circle");
-              if (ring) {
-                ring.style.strokeDashoffset = "75.4";
-                ring.parentElement.classList.remove("show");
-              }
-            }
-          });
-        });
-      }
 
       // ── Start ─────────────────────────────────────────────
       window.addEventListener("resize", resizeCanvas);
