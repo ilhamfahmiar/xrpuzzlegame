@@ -656,21 +656,18 @@
 
       // ── Layout ────────────────────────────────────────────
       function calcLayout(W, H, g, is2P) {
-        const pad = Math.floor(Math.min(W, H) * 0.02);
+        const pad = Math.floor(Math.min(W, H) * 0.015);
         if (is2P) {
-          // Split screen: P1 left half, P2 right half
+          // Split screen: P1 kiri, P2 kanan — grid hampir fullscreen
           const half = Math.floor(W / 2);
-          const gSz = Math.floor((Math.min(half, H) - pad * 3) * 0.72);
-          // P1 grid (left)
+          const gSz = Math.floor(Math.min(half - pad * 2, H - pad * 2));
           const g1X = Math.floor((half - gSz) / 2);
-          const g1Y = pad;
-          // P2 grid (right)
+          const g1Y = Math.floor((H - gSz) / 2);
           const g2X = half + Math.floor((half - gSz) / 2);
-          const g2Y = pad;
+          const g2Y = g1Y;
           const pW = Math.floor(gSz / g),
             pH = Math.floor(gSz / g);
-          const hY = g1Y + gSz + pad,
-            hH = H - hY - pad;
+          // Holding area = sama dengan grid area (kepingan tersebar di atas grid)
           return {
             is2P: true,
             half,
@@ -681,120 +678,80 @@
             gSz,
             pW,
             pH,
-            h1X: pad,
-            h1Y: hY,
-            h1W: half - pad * 2,
-            hH,
-            h2X: half + pad,
-            h2Y: hY,
-            h2W: half - pad * 2,
-            hH,
+            h1X: g1X,
+            h1Y: g1Y,
+            h1W: gSz,
+            hH: gSz,
+            h2X: g2X,
+            h2Y: g2Y,
+            h2W: gSz,
+            hH: gSz,
           };
         } else {
-          const isLandscape = W > H;
-
-          if (isLandscape) {
-            // Landscape: holding kiri, grid kanan
-            // Hitung ukuran kepingan yang ideal agar semua kepingan muat di holding area
-            // Holding area = 30% lebar layar
-            const holdW = Math.floor(W * 0.3);
-            const hX = pad,
-              hY = pad,
-              hW = holdW - pad * 2,
-              hH = H - pad * 2;
-
-            // Kepingan harus muat dalam holding area (g kolom × g baris)
-            // Cari pW maksimal agar g×g kepingan muat di hW × hH
-            const gap = 4;
-            const maxPWbyHold = Math.floor((hW - gap * (g - 1)) / g);
-            const maxPHbyHold = Math.floor((hH - gap * (g - 1)) / g);
-            const maxPbyHold = Math.min(maxPWbyHold, maxPHbyHold);
-
-            // Grid size berdasarkan sisa layar
-            const availGridW = W - holdW - pad * 3;
-            const availGridH = H - pad * 2;
-            const gridSzBySpace = Math.min(availGridW, availGridH);
-
-            // Pilih ukuran kepingan: tidak lebih besar dari yang muat di holding
-            // tapi juga tidak lebih kecil dari 40px
-            const pW = Math.max(
-              40,
-              Math.min(maxPbyHold, Math.floor(gridSzBySpace / g)),
-            );
-            const pH = pW;
-            const gW = pW * g,
-              gH = pH * g;
-            const gX = holdW + pad * 2;
-            const gY = Math.floor((H - gH) / 2);
-
-            return { is2P: false, gX, gY, gW, gH, pW, pH, hX, hY, hW, hH };
-          } else {
-            // Portrait: grid atas, holding bawah
-            // Kepingan harus muat di holding area (baris horizontal)
-            const hH = Math.floor(H * 0.28);
-            const hX = pad,
-              hY = H - hH - pad,
-              hW = W - pad * 2;
-
-            // Kepingan muat dalam 1 baris di holding area
-            const gap = 4;
-            const maxPbyHold = Math.floor((hW - gap * (g * g - 1)) / (g * g));
-            const maxPbyHoldH = hH - pad;
-
-            // Grid size
-            const availGridH = H - hH - pad * 3;
-            const availGridW = W - pad * 2;
-            const gridSzBySpace = Math.min(availGridH, availGridW);
-
-            const pW = Math.max(
-              40,
-              Math.min(maxPbyHold, maxPbyHoldH, Math.floor(gridSzBySpace / g)),
-            );
-            const pH = pW;
-            const gW = pW * g,
-              gH = pH * g;
-            const gX = Math.floor((W - gW) / 2),
-              gY = pad;
-
-            return { is2P: false, gX, gY, gW, gH, pW, pH, hX, hY, hW, hH };
-          }
+          // Single player: grid fullscreen, kepingan tersebar di atas grid
+          const gSz = Math.floor(Math.min(W, H) * 0.92);
+          const gW = gSz,
+            gH = gSz;
+          const gX = Math.floor((W - gW) / 2);
+          const gY = Math.floor((H - gH) / 2);
+          const pW = Math.floor(gW / g),
+            pH = Math.floor(gH / g);
+          // Holding area = grid area (kepingan tersebar di atas grid)
+          return {
+            is2P: false,
+            gX,
+            gY,
+            gW,
+            gH,
+            pW,
+            pH,
+            hX: gX,
+            hY: gY,
+            hW: gW,
+            hH: gH,
+          };
         }
       }
+
       function layoutHold(pieces, L) {
         if (L.is2P) {
-          // Pisahkan kepingan berdasarkan owner (p1/p2)
-          // P1 = kepingan dari foto P1, P2 = kepingan dari foto P2
           const p1 = pieces.filter((p) => !p.locked && p.owner === "p1");
           const p2 = pieces.filter((p) => !p.locked && p.owner === "p2");
-          const place = (arr, hX, hY, hW, hH, pW, pH) => {
-            const gap = 4;
-            const cols = Math.max(1, Math.floor(hW / (pW + gap)));
-            arr.forEach((p, i) => {
-              const c = i % cols,
-                r = Math.floor(i / cols);
-              p.x = hX + c * (pW + gap);
-              p.y = hY + r * (pH + gap);
-              p.lx = p.x;
-              p.ly = p.y;
+          // Sebar kepingan secara acak di atas grid masing-masing
+          const scatter = (arr, gX, gY, gSz, pW, pH) => {
+            arr.forEach((p) => {
+              if (p.x === 0 && p.y === 0) {
+                // Posisi awal acak di dalam grid
+                const maxC = Math.floor((gSz - pW) / pW);
+                const maxR = Math.floor((gSz - pH) / pH);
+                const c = Math.floor(Math.random() * (maxC + 1));
+                const r = Math.floor(Math.random() * (maxR + 1));
+                p.x = gX + c * pW + Math.floor(Math.random() * (pW * 0.3));
+                p.y = gY + r * pH + Math.floor(Math.random() * (pH * 0.3));
+                p.lx = p.x;
+                p.ly = p.y;
+              }
               p.w = pW;
               p.h = pH;
             });
           };
-          place(p1, L.h1X, L.h1Y, L.h1W, L.hH, L.pW, L.pH);
-          place(p2, L.h2X, L.h2Y, L.h2W, L.hH, L.pW, L.pH);
+          scatter(p1, L.g1X, L.g1Y, L.gSz, L.pW, L.pH);
+          scatter(p2, L.g2X, L.g2Y, L.gSz, L.pW, L.pH);
         } else {
           const ul = pieces.filter((p) => !p.locked);
-          const { hX, hY, hW, hH, pW, pH } = L;
-          const gap = 4;
-          // Kepingan di holding area SAMA ukurannya dengan slot grid (pW × pH)
-          const cols = Math.max(1, Math.floor(hW / (pW + gap)));
-          ul.forEach((p, i) => {
-            const c = i % cols,
-              r = Math.floor(i / cols);
-            p.x = hX + c * (pW + gap);
-            p.y = hY + r * (pH + gap);
-            p.lx = p.x;
-            p.ly = p.y;
+          const { gX, gY, gW, gH, pW, pH } = L;
+          // Sebar kepingan secara acak di atas grid
+          ul.forEach((p) => {
+            if (p.x === 0 && p.y === 0) {
+              const maxC = Math.floor((gW - pW) / pW);
+              const maxR = Math.floor((gH - pH) / pH);
+              const c = Math.floor(Math.random() * (maxC + 1));
+              const r = Math.floor(Math.random() * (maxR + 1));
+              p.x = gX + c * pW + Math.floor(Math.random() * (pW * 0.2));
+              p.y = gY + r * pH + Math.floor(Math.random() * (pH * 0.2));
+              p.lx = p.x;
+              p.ly = p.y;
+            }
             p.w = pW;
             p.h = pH;
           });
@@ -898,7 +855,95 @@
           ctx.restore();
         }
 
+        // Gambar skeleton tangan di atas semua elemen
+        if (S.h1)
+          drawHandSkeleton(
+            ctx,
+            S.h1,
+            W,
+            H,
+            "#00E5FF",
+            S.drag1 ? "#2CB67D" : null,
+          );
+        if (S.h2)
+          drawHandSkeleton(
+            ctx,
+            S.h2,
+            W,
+            H,
+            "#FF6584",
+            S.drag2 ? "#2CB67D" : null,
+          );
+
         S.animId = requestAnimationFrame(render);
+      }
+
+      // ── Hand Skeleton Renderer ────────────────────────────
+      // Gambar skeleton tangan seperti di video referensi
+      function drawHandSkeleton(ctx, h, W, H, color, activeColor) {
+        if (!h || !h.lm) return;
+        const lm = h.lm;
+        const col = activeColor || color;
+
+        // Koneksi tulang tangan MediaPipe
+        const connections = [
+          // Telapak
+          [0, 1],
+          [1, 2],
+          [2, 3],
+          [3, 4], // ibu jari
+          [0, 5],
+          [5, 6],
+          [6, 7],
+          [7, 8], // telunjuk
+          [0, 9],
+          [9, 10],
+          [10, 11],
+          [11, 12], // tengah
+          [0, 13],
+          [13, 14],
+          [14, 15],
+          [15, 16], // manis
+          [0, 17],
+          [17, 18],
+          [18, 19],
+          [19, 20], // kelingking
+          [5, 9],
+          [9, 13],
+          [13, 17], // knuckle bar
+        ];
+
+        ctx.save();
+        ctx.strokeStyle = col;
+        ctx.lineWidth = 2.5;
+        ctx.shadowColor = col;
+        ctx.shadowBlur = 8;
+        ctx.globalAlpha = 0.85;
+
+        // Gambar garis tulang
+        connections.forEach(([a, b]) => {
+          const ax = (1 - lm[a].x) * W,
+            ay = lm[a].y * H;
+          const bx = (1 - lm[b].x) * W,
+            by = lm[b].y * H;
+          ctx.beginPath();
+          ctx.moveTo(ax, ay);
+          ctx.lineTo(bx, by);
+          ctx.stroke();
+        });
+
+        // Gambar titik sendi
+        lm.forEach((pt, i) => {
+          const x = (1 - pt.x) * W,
+            y = pt.y * H;
+          const r = i === 0 ? 6 : i % 4 === 0 ? 5 : 3; // ujung jari lebih besar
+          ctx.beginPath();
+          ctx.arc(x, y, r, 0, Math.PI * 2);
+          ctx.fillStyle = i % 4 === 0 ? "#fff" : col;
+          ctx.fill();
+        });
+
+        ctx.restore();
       }
 
       function drawGrid(ctx, gX, gY, gW, gH, g, pW, pH, dragState, player) {
@@ -1242,6 +1287,7 @@
           isClosed,
           normPinch: smoothedPinch, // for visual feedback (0=closed, 1=open)
           handedness,
+          lm, // raw landmarks untuk skeleton rendering
         };
       }
 
@@ -1467,6 +1513,12 @@
             if (lbl) lbl.style.display = "none";
             return;
           }
+          // Di game screen: sembunyikan dot cursor karena skeleton sudah digambar di canvas
+          if (S.screen === "game") {
+            c.style.display = "none";
+            if (lbl) lbl.style.display = "none";
+            return;
+          }
           const sx = h.ix * window.innerWidth;
           const sy = h.iy * window.innerHeight;
           c.style.display = "block";
@@ -1480,7 +1532,6 @@
           const sz = h.isPinching ? 14 : h.isOpen ? 28 : 20;
           c.style.width = sz + "px";
           c.style.height = sz + "px";
-          // Label — sesuai gesture baru: pinch=ambil, fist=lepas
           if (lbl) {
             lbl.style.display = "block";
             lbl.style.left = sx + "px";
