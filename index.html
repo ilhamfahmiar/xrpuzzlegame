@@ -645,39 +645,71 @@
             hH,
           };
         } else {
-          // Layout landscape: holding area kiri (35%), grid kanan (65%)
-          // Layout portrait: grid atas (65%), holding area bawah (35%)
           const isLandscape = W > H;
 
           if (isLandscape) {
-            // Landscape: side-by-side — holding kiri, grid kanan
-            const holdW = Math.floor(W * 0.32);
-            const gridSz = Math.floor(
-              Math.min(H - pad * 2, W - holdW - pad * 3),
-            );
-            const gW = gridSz,
-              gH = gridSz;
-            const gX = holdW + pad * 2;
-            const gY = Math.floor((H - gH) / 2);
-            const pW = Math.floor(gW / g),
-              pH = Math.floor(gH / g);
+            // Landscape: holding kiri, grid kanan
+            // Hitung ukuran kepingan yang ideal agar semua kepingan muat di holding area
+            // Holding area = 30% lebar layar
+            const holdW = Math.floor(W * 0.3);
             const hX = pad,
               hY = pad,
-              hW = holdW - pad,
+              hW = holdW - pad * 2,
               hH = H - pad * 2;
+
+            // Kepingan harus muat dalam holding area (g kolom × g baris)
+            // Cari pW maksimal agar g×g kepingan muat di hW × hH
+            const gap = 4;
+            const maxPWbyHold = Math.floor((hW - gap * (g - 1)) / g);
+            const maxPHbyHold = Math.floor((hH - gap * (g - 1)) / g);
+            const maxPbyHold = Math.min(maxPWbyHold, maxPHbyHold);
+
+            // Grid size berdasarkan sisa layar
+            const availGridW = W - holdW - pad * 3;
+            const availGridH = H - pad * 2;
+            const gridSzBySpace = Math.min(availGridW, availGridH);
+
+            // Pilih ukuran kepingan: tidak lebih besar dari yang muat di holding
+            // tapi juga tidak lebih kecil dari 40px
+            const pW = Math.max(
+              40,
+              Math.min(maxPbyHold, Math.floor(gridSzBySpace / g)),
+            );
+            const pH = pW;
+            const gW = pW * g,
+              gH = pH * g;
+            const gX = holdW + pad * 2;
+            const gY = Math.floor((H - gH) / 2);
+
             return { is2P: false, gX, gY, gW, gH, pW, pH, hX, hY, hW, hH };
           } else {
             // Portrait: grid atas, holding bawah
-            const gH = Math.floor((H - pad * 3) * 0.65),
-              gW = gH;
+            // Kepingan harus muat di holding area (baris horizontal)
+            const hH = Math.floor(H * 0.28);
+            const hX = pad,
+              hY = H - hH - pad,
+              hW = W - pad * 2;
+
+            // Kepingan muat dalam 1 baris di holding area
+            const gap = 4;
+            const maxPbyHold = Math.floor((hW - gap * (g * g - 1)) / (g * g));
+            const maxPbyHoldH = hH - pad;
+
+            // Grid size
+            const availGridH = H - hH - pad * 3;
+            const availGridW = W - pad * 2;
+            const gridSzBySpace = Math.min(availGridH, availGridW);
+
+            const pW = Math.max(
+              40,
+              Math.min(maxPbyHold, maxPbyHoldH, Math.floor(gridSzBySpace / g)),
+            );
+            const pH = pW;
+            const gW = pW * g,
+              gH = pH * g;
             const gX = Math.floor((W - gW) / 2),
               gY = pad;
-            const pW = Math.floor(gW / g),
-              pH = Math.floor(gH / g);
-            const hY = gY + gH + pad,
-              hH = H - hY - pad,
-              hX = pad,
-              hW = W - pad * 2;
+
             return { is2P: false, gX, gY, gW, gH, pW, pH, hX, hY, hW, hH };
           }
         }
