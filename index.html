@@ -425,7 +425,9 @@
       const S = {
         screen: "loading",
         stream: null,
-        captData: null,
+        captData: null, // foto single player
+        captData1: null, // foto P1 (mode 2P)
+        captData2: null, // foto P2 (mode 2P)
         diff: "medium",
         is2P: false,
         pieces: [],
@@ -591,7 +593,7 @@
           drag: false,
           lx: 0,
           ly: 0,
-          owner: null, // 'p1' or 'p2' in 2P mode
+          owner: null,
         }));
         // Shuffle
         for (let i = ps.length - 1; i > 0; i--) {
@@ -606,6 +608,50 @@
           }
         }
         return ps;
+      }
+
+      // Mode 2P: tiap pemain punya kepingan dari fotonya sendiri
+      // P1 dapat kepingan dari captData1, P2 dari captData2
+      // ID kepingan: P1 = 0..n-1, P2 = n..2n-1
+      function buildPieces2P(d1, d2, diff) {
+        const cfg = DIFF_CFG[diff];
+        const n = cfg.n;
+
+        function makePieces(d, idOffset, owner) {
+          const cropped = squareCrop(d);
+          const slices = sliceGrid(cropped, cfg.g);
+          let ps = slices.map((img, i) => ({
+            id: idOffset + i,
+            slot: idOffset + i,
+            img,
+            x: 0,
+            y: 0,
+            w: img.width,
+            h: img.height,
+            locked: false,
+            drag: false,
+            lx: 0,
+            ly: 0,
+            owner,
+          }));
+          // Shuffle
+          for (let i = ps.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [ps[i], ps[j]] = [ps[j], ps[i]];
+          }
+          // Ensure no piece in correct position
+          for (let i = 0; i < ps.length; i++) {
+            if (ps[i].id === ps[i].slot && ps.length > 1) {
+              const j = i === ps.length - 1 ? 0 : i + 1;
+              [ps[i], ps[j]] = [ps[j], ps[i]];
+            }
+          }
+          return ps;
+        }
+
+        const p1Pieces = makePieces(d1, 0, "p1");
+        const p2Pieces = makePieces(d2, n, "p2");
+        return [...p1Pieces, ...p2Pieces];
       }
 
       // ── Layout ────────────────────────────────────────────
@@ -716,9 +762,10 @@
       }
       function layoutHold(pieces, L) {
         if (L.is2P) {
-          // Split pieces: odd ids to P1, even ids to P2
-          const p1 = pieces.filter((p) => !p.locked && p.id % 2 === 0);
-          const p2 = pieces.filter((p) => !p.locked && p.id % 2 !== 0);
+          // Pisahkan kepingan berdasarkan owner (p1/p2)
+          // P1 = kepingan dari foto P1, P2 = kepingan dari foto P2
+          const p1 = pieces.filter((p) => !p.locked && p.owner === "p1");
+          const p2 = pieces.filter((p) => !p.locked && p.owner === "p2");
           const place = (arr, hX, hY, hW, hH, pW, pH) => {
             const gap = 4;
             const cols = Math.max(1, Math.floor(hW / (pW + gap)));
@@ -958,11 +1005,15 @@
           gX = L.gX;
           gY = L.gY;
         }
+        // Offset slot untuk P2 (slot P2 dimulai dari n)
+        const n = DIFF_CFG[S.diff].n;
+        const slotOffset = L.is2P && player === "p2" ? n : 0;
+
         let best = null,
           bd = Infinity;
         for (let r = 0; r < g; r++)
           for (let c = 0; c < g; c++) {
-            const si = r * g + c,
+            const si = r * g + c + slotOffset,
               sx = gX + c * pW + pW / 2,
               sy = gY + r * pH + pH / 2;
             const d = Math.hypot(cx - sx, cy - sy);
@@ -987,8 +1038,11 @@
           gY = L.gY;
         }
         if (slot === p.slot) {
-          const r = Math.floor(slot / g),
-            c = slot % g;
+          // Normalisasi slot untuk grid (mode 2P: P2 slot dimulai dari n)
+          const n = DIFF_CFG[S.diff].n;
+          const localSlot = L.is2P && player === "p2" ? slot - n : slot;
+          const r = Math.floor(localSlot / g),
+            c = localSlot % g;
           p.x = gX + c * pW;
           p.y = gY + r * pH;
           p.locked = true;
@@ -1035,11 +1089,11 @@
         if (!ds) return;
         const p = S.pieces.find((q) => q.id === ds.pid);
         if (!p) return;
-        // Lerp lebih cepat: 0.45 = responsif, kepingan mengikuti tangan dengan baik
+        // Lerp 0.6 = sangat responsif, kepingan hampir langsung mengikuti tangan
         const tx = x - ds.ox,
           ty = y - ds.oy;
-        p.x += (tx - p.x) * 0.45;
-        p.y += (ty - p.y) * 0.45;
+        p.x += (tx - p.x) * 0.6;
+        p.y += (ty - p.y) * 0.6;
         ds.closest = closestSlot(p.x + p.w / 2, p.y + p.h / 2, player);
       }
 
@@ -1150,12 +1204,12 @@
         const smoothedPinch = smoothVal(buf.pinch, normPinch, SMOOTH_PINCH);
 
         // Pinch threshold with hysteresis to prevent flickering
-        // Enter at 0.35 (tighter = needs more deliberate pinch)
-        // Exit at 0.52 (wider = easier to release)
+        // Enter at 0.42 (lebih mudah pinch)
+        // Exit at 0.58 (lebih mudah lepas)
         const wasPinching = buf._pinching || false;
         const isPinching = wasPinching
-          ? smoothedPinch < 0.52 // exit threshold
-          : smoothedPinch < 0.35; // enter threshold
+          ? smoothedPinch < 0.58 // exit threshold — lebih mudah lepas
+          : smoothedPinch < 0.42; // enter threshold — lebih mudah pinch
         buf._pinching = isPinching;
 
         // ── Cursor position (index fingertip, smoothed) ──
@@ -1355,27 +1409,39 @@
           detected.push(h);
         });
 
-        // In 2P mode: assign by screen position (left half = P1, right half = P2)
-        // This prevents P1/P2 swap when both hands are in frame
-        if (S.is2P && detected.length >= 2) {
-          // Sort by X position: leftmost = P1, rightmost = P2
-          detected.sort((a, b) => a.ix - b.ix);
-          S.h1 = detected[0]; // left side = P1
-          S.h2 = detected[1]; // right side = P2
-        } else if (S.is2P && detected.length === 1) {
-          // Single hand in 2P: assign to correct side based on position
-          const h = detected[0];
-          if (h.ix < 0.5) {
-            S.h1 = h;
-            S.h2 = null;
-          } else {
-            S.h1 = null;
-            S.h2 = h;
+        // ── Hand Assignment ──────────────────────────────────
+        // Di mode 2P: LOCK tangan kiri = P1, tangan kanan = P2
+        // MediaPipe melaporkan handedness dari perspektif orang (bukan kamera)
+        // "Left" dari MediaPipe = tangan kiri orang = tampil di KANAN layar (karena mirror)
+        // "Right" dari MediaPipe = tangan kanan orang = tampil di KIRI layar
+        // Kita ingin: P1 = sisi kiri layar, P2 = sisi kanan layar
+        // Jadi: "Right" (kiri layar) = P1, "Left" (kanan layar) = P2
+        if (S.is2P) {
+          S.h1 = null;
+          S.h2 = null;
+          detected.forEach((h) => {
+            // "Right" hand dari MediaPipe = tampil di kiri layar = P1
+            // "Left" hand dari MediaPipe = tampil di kanan layar = P2
+            if (h.handedness === "Right") S.h1 = h;
+            else S.h2 = h;
+          });
+          // Fallback: jika handedness tidak jelas, gunakan posisi X
+          if (!S.h1 && !S.h2 && detected.length > 0) {
+            const sorted = [...detected].sort((a, b) => a.ix - b.ix);
+            S.h1 = sorted[0]; // kiri layar = P1
+            if (sorted[1]) S.h2 = sorted[1]; // kanan layar = P2
+          } else if (!S.h1 && detected.length > 0) {
+            // Hanya ada P2 hand, cek apakah ada yang bisa jadi P1
+            const unassigned = detected.filter((h) => h !== S.h2);
+            if (unassigned.length > 0) S.h1 = unassigned[0];
+          } else if (!S.h2 && detected.length > 0) {
+            const unassigned = detected.filter((h) => h !== S.h1);
+            if (unassigned.length > 0) S.h2 = unassigned[0];
           }
         } else {
-          // Single player or default: first = h1, second = h2
-          if (detected[0]) S.h1 = detected[0];
-          if (detected[1]) S.h2 = detected[1];
+          // Single player: first = h1, second = h2
+          S.h1 = detected[0] || null;
+          S.h2 = detected[1] || null;
         }
 
         // Update cursors
@@ -1452,10 +1518,10 @@
         const hint = $("cam-hint");
         if (S.is2P) {
           hint.innerHTML =
-            "👐 <b>P1:</b> 2 tangan kiri pilih area &nbsp;|&nbsp; �� <b>P2:</b> 2 tangan kanan pilih area<br>✊ <b>Kepalan</b> = ambil foto";
+            "🤏 <b>P1</b> (kiri): Pinch untuk ambil foto &nbsp;|&nbsp; 🤏 <b>P2</b> (kanan): Pinch untuk ambil foto<br>Tiap pemain ambil foto wajahnya sendiri!";
         } else {
           hint.innerHTML =
-            "👐 <b>Buka tangan</b> lalu ✊ <b>kepal</b> = ambil foto<br>✌️ <b>2 tangan</b> = pilih area foto";
+            "🤏 <b>Pinch</b> (cubit) = ambil foto &nbsp;|&nbsp; ✌️ <b>2 tangan</b> = pilih area foto";
         }
         // Start canvas draw loop for camera
         const drawCam = () => {
@@ -1686,15 +1752,36 @@
         const p1 = S.h1 && S.h1.isPinching;
         const p2 = S.h2 && S.h2.isPinching;
 
-        // Detect pinch START (transition false -> true) = CAPTURE
-        if ((p1 && !camPinch1Prev) || (p2 && !camPinch2Prev)) {
-          const h = p1 ? S.h1 : S.h2;
-          showPinchIndicator(h.ix, h.iy);
-          camCaptureCooldown = true;
-          setTimeout(() => (camCaptureCooldown = false), 2500);
-          setTimeout(() => App.capturePhoto(), 150); // slight delay for visual
-          // Lock gestures for 2s after capture so user doesn't accidentally trigger diff screen
-          lockGestures(2200);
+        if (S.is2P) {
+          // Mode 2P: tiap pemain ambil foto sendiri
+          // P1 (tangan kiri layar) pinch = foto P1
+          // P2 (tangan kanan layar) pinch = foto P2
+          if (p1 && !camPinch1Prev && !S.captData1) {
+            // P1 ambil foto
+            showPinchIndicator(S.h1.ix, S.h1.iy);
+            App.capturePhotoForPlayer(1);
+          }
+          if (p2 && !camPinch2Prev && !S.captData2) {
+            // P2 ambil foto
+            showPinchIndicator(S.h2.ix, S.h2.iy);
+            App.capturePhotoForPlayer(2);
+          }
+          // Jika kedua foto sudah diambil, lanjut ke difficulty
+          if (S.captData1 && S.captData2) {
+            camCaptureCooldown = true;
+            lockGestures(2200);
+            setTimeout(() => App.showDiffScreen(), 500);
+          }
+        } else {
+          // Single player: pinch = ambil foto
+          if ((p1 && !camPinch1Prev) || (p2 && !camPinch2Prev)) {
+            const h = p1 ? S.h1 : S.h2;
+            showPinchIndicator(h.ix, h.iy);
+            camCaptureCooldown = true;
+            setTimeout(() => (camCaptureCooldown = false), 2500);
+            setTimeout(() => App.capturePhoto(), 150);
+            lockGestures(2200);
+          }
         }
 
         camPinch1Prev = !!p1;
@@ -2048,6 +2135,13 @@
 
         // Go to camera (called from home or after result)
         goCamera() {
+          // Reset foto saat kembali ke kamera
+          S.captData = null;
+          S.captData1 = null;
+          S.captData2 = null;
+          camCaptureCooldown = false;
+          camPinch1Prev = false;
+          camPinch2Prev = false;
           // Ensure cam-video has the stream
           const cv = $("cam-video");
           if (S.stream && cv.srcObject !== S.stream) {
@@ -2082,8 +2176,55 @@
           document.body.appendChild(fl);
           setTimeout(() => (fl.style.opacity = "0"), 50);
           setTimeout(() => fl.remove(), 400);
-          // Go to difficulty
           App.showDiffScreen();
+        },
+
+        // Ambil foto untuk pemain tertentu (mode 2P)
+        capturePhotoForPlayer(player) {
+          const v = $("cam-video");
+          if (!v || v.readyState < 2) {
+            toast("Kamera belum siap");
+            return;
+          }
+          const w = v.videoWidth || 640,
+            h = v.videoHeight || 480;
+          const c = mkCanvas(w, h),
+            ctx = c.getContext("2d");
+          ctx.translate(w, 0);
+          ctx.scale(-1, 1);
+          ctx.drawImage(v, 0, 0, w, h);
+          const imgData = ctx.getImageData(0, 0, w, h);
+
+          // Flash effect dengan warna berbeda per pemain
+          const fl = document.createElement("div");
+          const col =
+            player === 1 ? "rgba(108,99,255,0.6)" : "rgba(255,101,132,0.6)";
+          fl.style.cssText = `position:fixed;inset:0;background:${col};z-index:9999;opacity:.8;pointer-events:none;transition:opacity 300ms`;
+          document.body.appendChild(fl);
+          setTimeout(() => (fl.style.opacity = "0"), 50);
+          setTimeout(() => fl.remove(), 400);
+
+          if (player === 1) {
+            S.captData1 = imgData;
+            toast("📸 P1: Foto diambil! Menunggu P2...", 2000);
+          } else {
+            S.captData2 = imgData;
+            toast("📸 P2: Foto diambil!", 2000);
+          }
+
+          // Update hint di kamera
+          const hint = $("cam-hint");
+          if (hint) {
+            if (S.captData1 && S.captData2) {
+              hint.innerHTML = "✅ Kedua foto sudah diambil! Melanjutkan...";
+            } else if (S.captData1) {
+              hint.innerHTML =
+                "✅ <b>P1</b> sudah foto &nbsp;|&nbsp; 🤏 <b>P2</b> pinch untuk foto";
+            } else if (S.captData2) {
+              hint.innerHTML =
+                "🤏 <b>P1</b> pinch untuk foto &nbsp;|&nbsp; ✅ <b>P2</b> sudah foto";
+            }
+          }
         },
 
         // ── Difficulty ──
@@ -2172,12 +2313,25 @@
 
         // ── Game ──
         startGame() {
-          if (!S.captData) {
-            toast("Foto belum diambil");
-            return;
+          // Validasi foto
+          if (S.is2P) {
+            if (!S.captData1 || !S.captData2) {
+              toast("Kedua pemain harus ambil foto dulu!");
+              App.goCamera();
+              return;
+            }
+          } else {
+            if (!S.captData) {
+              toast("Foto belum diambil");
+              return;
+            }
           }
-          // Build pieces
-          S.pieces = buildPieces(S.captData, S.diff);
+          // Build pieces — mode 2P: tiap pemain punya puzzle dari fotonya sendiri
+          if (S.is2P) {
+            S.pieces = buildPieces2P(S.captData1, S.captData2, S.diff);
+          } else {
+            S.pieces = buildPieces(S.captData, S.diff);
+          }
           S.placed = 0;
           S.placed1 = 0;
           S.placed2 = 0;
