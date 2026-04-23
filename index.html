@@ -1166,8 +1166,8 @@
         h1: { x: [], y: [], pinch: [], size: 0 },
         h2: { x: [], y: [], pinch: [], size: 0 },
       };
-      const SMOOTH_POS = 7; // frames for position smoothing (higher = smoother cursor)
-      const SMOOTH_PINCH = 5; // frames for pinch smoothing (higher = less false pinch)
+      const SMOOTH_POS = 4; // lebih sedikit smoothing = lebih responsif
+      const SMOOTH_PINCH = 3; // pinch lebih cepat terdeteksi
 
       function smoothVal(buf, val, maxLen) {
         buf.push(val);
@@ -1203,13 +1203,13 @@
         // Smooth pinch value
         const smoothedPinch = smoothVal(buf.pinch, normPinch, SMOOTH_PINCH);
 
-        // Pinch threshold with hysteresis to prevent flickering
-        // Enter at 0.42 (lebih mudah pinch)
-        // Exit at 0.58 (lebih mudah lepas)
+        // Pinch threshold — natural dan mudah seperti di video
+        // Enter at 0.50 (sangat mudah, hampir setengah jarak palm)
+        // Exit at 0.65 (mudah lepas)
         const wasPinching = buf._pinching || false;
         const isPinching = wasPinching
-          ? smoothedPinch < 0.58 // exit threshold — lebih mudah lepas
-          : smoothedPinch < 0.42; // enter threshold — lebih mudah pinch
+          ? smoothedPinch < 0.65 // exit — mudah lepas
+          : smoothedPinch < 0.5; // enter — mudah pinch
         buf._pinching = isPinching;
 
         // ── Cursor position (index fingertip, smoothed) ──
@@ -1486,20 +1486,16 @@
             lbl.style.left = sx + "px";
             lbl.style.top = sy + "px";
             if (drag) {
-              // Sedang membawa kepingan — instruksi: genggam untuk lepas
-              lbl.textContent = "✊ Genggam = lepas";
+              lbl.textContent = "✊ Tutup = lepas";
               lbl.style.background = "rgba(44,182,125,0.8)";
-            } else if (h.isPinching) {
-              // Sedang cubit — akan ambil kepingan
-              lbl.textContent = "🤏 Mengambil...";
+            } else if (h.isOpen) {
+              lbl.textContent = "👐 Buka = ambil";
               lbl.style.background = "rgba(108,99,255,0.9)";
-            } else if (h.isClosed && !h.isPinching) {
-              // Genggam tanpa cubit
-              lbl.textContent = "✊ Genggam";
+            } else if (h.isPinching || h.isClosed) {
+              lbl.textContent = "✊ Tutup = lepas";
               lbl.style.background = "rgba(255,101,132,0.8)";
             } else {
-              // Tangan terbuka — instruksi: cubit untuk ambil
-              lbl.textContent = "🤏 Cubit = ambil";
+              lbl.textContent = "👐 Buka tangan";
               lbl.style.background = "rgba(0,0,0,0.6)";
             }
           }
@@ -1874,11 +1870,12 @@
       //   idle -> pinching (ambil) -> fist (lepas) -> idle
       //   idle -> pinching (ambil) -> idle (tangan hilang = lepas)
 
-      // Debounce: butuh N frame berturut-turut sebelum gesture dianggap valid
-      const _pinchFrames = { h1: 0, h2: 0 }; // counter frame pinch
-      const _fistFrames = { h1: 0, h2: 0 }; // counter frame fist
-      const PINCH_FRAMES_NEEDED = 2; // frame pinch untuk mulai drag
-      const FIST_FRAMES_NEEDED = 2; // frame fist untuk drop
+      // Gesture game: OPEN HAND = ambil kepingan, CLOSE/PINCH = lepas
+      // Ini lebih natural — buka tangan untuk grab, tutup untuk drop
+      const _grabFrames = { h1: 0, h2: 0 }; // counter frame open hand
+      const _dropFrames = { h1: 0, h2: 0 }; // counter frame close/pinch
+      const GRAB_FRAMES_NEEDED = 2; // frame open untuk mulai drag
+      const DROP_FRAMES_NEEDED = 2; // frame close untuk drop
 
       function handleGameGesture() {
         if (S.paused) {
@@ -1897,74 +1894,61 @@
           y: (h.iy * window.innerHeight - rect.top) * scaleY,
         });
 
-        // PINCH = ambil kepingan, FIST = lepas kepingan
+        // OPEN HAND = ambil kepingan, CLOSE/PINCH = lepas kepingan
+        // Lebih natural: buka tangan untuk grab, tutup untuk drop
         const processHand = (h, dragKey, player) => {
           const hKey = dragKey === "drag1" ? "h1" : "h2";
 
           if (!h) {
-            // Tangan hilang: drop jika sedang drag
             if (S[dragKey]) endDrag(dragKey, player);
             handState[hKey] = "idle";
-            _pinchFrames[hKey] = 0;
-            _fistFrames[hKey] = 0;
+            _grabFrames[hKey] = 0;
+            _dropFrames[hKey] = 0;
             return;
           }
 
           const { x, y } = toCanvas(h);
           const prevState = handState[hKey];
 
-          // Hitung finger extension untuk deteksi fist
-          // isClosed dari makeHand: extCount <= 1 || isPinching
-          // Kita butuh fist TANPA pinch (semua jari tertutup, bukan cubit)
-          const isFist = h.isClosed && !h.isPinching;
-          const isPinch = h.isPinching;
+          // isOpen = 3+ jari terbuka, isClosed = 1 atau kurang jari terbuka
+          const isGrab = h.isOpen; // buka tangan = grab
+          const isDrop = h.isClosed; // tutup tangan / pinch = drop
 
-          if (isPinch) {
-            // PINCH: ambil kepingan
-            _pinchFrames[hKey]++;
-            _fistFrames[hKey] = 0;
+          if (isGrab) {
+            _grabFrames[hKey]++;
+            _dropFrames[hKey] = 0;
 
-            if (_pinchFrames[hKey] >= PINCH_FRAMES_NEEDED) {
-              if (prevState !== "pinch") {
-                // Mulai drag: ambil kepingan di posisi tangan
+            if (_grabFrames[hKey] >= GRAB_FRAMES_NEEDED) {
+              if (prevState !== "grab") {
+                // Mulai drag
                 startDrag(h, x, y, dragKey);
-                handState[hKey] = "pinch";
+                handState[hKey] = "grab";
               } else if (S[dragKey]) {
-                // Lanjut drag: gerakkan kepingan
+                // Lanjut drag
                 moveDrag(x, y, dragKey, player);
               }
             } else if (S[dragKey]) {
               moveDrag(x, y, dragKey, player);
             }
-          } else if (isFist) {
-            // FIST: lepas kepingan
-            _fistFrames[hKey]++;
-            _pinchFrames[hKey] = 0;
+          } else if (isDrop) {
+            _dropFrames[hKey]++;
+            _grabFrames[hKey] = 0;
 
-            if (_fistFrames[hKey] >= FIST_FRAMES_NEEDED) {
-              if (prevState === "pinch" && S[dragKey]) {
-                // Drop kepingan ke slot terdekat
+            if (_dropFrames[hKey] >= DROP_FRAMES_NEEDED) {
+              if (prevState === "grab" && S[dragKey]) {
                 endDrag(dragKey, player);
               }
-              handState[hKey] = "fist";
+              handState[hKey] = "drop";
             } else if (S[dragKey]) {
-              // Belum cukup frame fist, tetap gerakkan
               moveDrag(x, y, dragKey, player);
             }
           } else {
-            // Tangan terbuka / neutral: reset counter
-            _pinchFrames[hKey] = Math.max(0, _pinchFrames[hKey] - 1);
-            _fistFrames[hKey] = Math.max(0, _fistFrames[hKey] - 1);
-
-            // Jika sebelumnya fist dan sekarang terbuka: kembali ke idle
-            if (prevState === "fist") {
-              handState[hKey] = "idle";
-            }
-
-            // Tetap gerakkan kepingan jika masih dalam state pinch
-            if (prevState === "pinch" && S[dragKey]) {
+            // Neutral
+            _grabFrames[hKey] = Math.max(0, _grabFrames[hKey] - 1);
+            _dropFrames[hKey] = Math.max(0, _dropFrames[hKey] - 1);
+            if (prevState === "drop") handState[hKey] = "idle";
+            if (prevState === "grab" && S[dragKey])
               moveDrag(x, y, dragKey, player);
-            }
           }
         };
 
@@ -1973,9 +1957,9 @@
           processHand(S.h2, "drag2", "p2");
         } else {
           processHand(S.h1, "drag1", null);
-          // h2 = preview: open hand = show preview
+          // h2 = preview: pinch = show preview
           if (S.h2) {
-            S.previewActive = S.h2.isOpen;
+            S.previewActive = S.h2.isPinching;
           } else {
             S.previewActive = false;
           }
@@ -2342,11 +2326,11 @@
           S.timeLeft = DIFF_CFG[S.diff].t;
           g1PinchPrev = false;
           g2PinchPrev = false;
-          // Reset debounce counters (gesture baru: pinch=ambil, fist=lepas)
-          _pinchFrames.h1 = 0;
-          _pinchFrames.h2 = 0;
-          _fistFrames.h1 = 0;
-          _fistFrames.h2 = 0;
+          // Reset debounce counters (gesture: open=grab, close=drop)
+          _grabFrames.h1 = 0;
+          _grabFrames.h2 = 0;
+          _dropFrames.h1 = 0;
+          _dropFrames.h2 = 0;
           handState.h1 = "idle";
           handState.h2 = "idle";
 
@@ -2374,8 +2358,8 @@
           // Show gesture hint
           showGestureHint(
             S.is2P
-              ? "🤏 Cubit = ambil kepingan &nbsp;|&nbsp; ✊ Genggam = lepas"
-              : "🤏 Cubit = ambil kepingan &nbsp;|&nbsp; ✊ Genggam = lepas &nbsp;|&nbsp; 👐 Tangan kanan = pratinjau",
+              ? "👐 Buka tangan = ambil kepingan &nbsp;|&nbsp; ✊ Tutup tangan = lepas"
+              : "👐 Buka tangan = ambil &nbsp;|&nbsp; ✊ Tutup = lepas &nbsp;|&nbsp; 🤏 Tangan kanan = pratinjau",
             5000,
           );
           // HUD
