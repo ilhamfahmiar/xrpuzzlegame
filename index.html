@@ -793,32 +793,30 @@
       }
 
       // Tempatkan sebagian kepingan di dalam grid saat game dimulai
-      // Sisakan 1 slot kosong agar kepingan bisa bergeser (sliding puzzle style)
+      // Tempatkan SEMUA kepingan di dalam grid saat game dimulai (acak)
+      // Sisakan 1 slot kosong — tiap slot 1 kepingan, tidak tumpuk
       function placeInitialPiecesInGrid(pieces, L) {
         const g = DIFF_CFG[S.diff].g;
         const n = g * g;
-        const numInGrid = n - 1; // sisakan 1 slot kosong
 
         if (L.is2P) {
           const p1 = pieces.filter((p) => p.owner === "p1");
           const p2 = pieces.filter((p) => p.owner === "p2");
           const placeInGrid = (arr, gX, gY, pW, pH) => {
-            // Pilih slot acak untuk dikosongkan
-            const emptySlot = Math.floor(Math.random() * n);
-            let slotIdx = 0;
+            // Buat daftar slot acak (n slot untuk n-1 kepingan → 1 kosong)
+            const slots = Array.from({ length: n }, (_, i) => i);
+            for (let i = slots.length - 1; i > 0; i--) {
+              const j = Math.floor(Math.random() * (i + 1));
+              [slots[i], slots[j]] = [slots[j], slots[i]];
+            }
             arr.forEach((p, i) => {
-              if (i < numInGrid) {
-                // Tempatkan di grid, skip empty slot
-                if (slotIdx === emptySlot) slotIdx++;
-                const r = Math.floor(slotIdx / g),
-                  c = slotIdx % g;
-                p.x = gX + c * pW;
-                p.y = gY + r * pH;
-                p.lx = p.x;
-                p.ly = p.y;
-                slotIdx++;
-              }
-              // Kepingan sisanya tetap di luar grid (sudah diatur layoutHold)
+              const slotIdx = slots[i];
+              const r = Math.floor(slotIdx / g),
+                c = slotIdx % g;
+              p.x = gX + c * pW;
+              p.y = gY + r * pH;
+              p.lx = p.x;
+              p.ly = p.y;
             });
           };
           placeInGrid(p1, L.g1X, L.g1Y, L.pW, L.pH);
@@ -826,19 +824,21 @@
         } else {
           const ul = pieces.filter((p) => !p.locked);
           const { gX, gY, pW, pH } = L;
-          const emptySlot = Math.floor(Math.random() * n);
-          let slotIdx = 0;
+          // Shuffle slot indices
+          const slots = Array.from({ length: n }, (_, i) => i);
+          for (let i = slots.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [slots[i], slots[j]] = [slots[j], slots[i]];
+          }
+          // Tempatkan n-1 kepingan ke n-1 slot pertama (1 slot kosong)
           ul.forEach((p, i) => {
-            if (i < numInGrid) {
-              if (slotIdx === emptySlot) slotIdx++;
-              const r = Math.floor(slotIdx / g),
-                c = slotIdx % g;
-              p.x = gX + c * pW;
-              p.y = gY + r * pH;
-              p.lx = p.x;
-              p.ly = p.y;
-              slotIdx++;
-            }
+            const slotIdx = slots[i];
+            const r = Math.floor(slotIdx / g),
+              c = slotIdx % g;
+            p.x = gX + c * pW;
+            p.y = gY + r * pH;
+            p.lx = p.x;
+            p.ly = p.y;
           });
         }
       }
