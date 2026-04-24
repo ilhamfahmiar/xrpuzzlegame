@@ -656,18 +656,19 @@
 
       // ── Layout ────────────────────────────────────────────
       function calcLayout(W, H, g, is2P) {
-        const pad = Math.floor(Math.min(W, H) * 0.015);
+        const pad = Math.floor(Math.min(W, H) * 0.02);
         if (is2P) {
-          // Split screen: P1 kiri, P2 kanan — grid hampir fullscreen
+          // Split screen: P1 kiri, P2 kanan
           const half = Math.floor(W / 2);
-          const gSz = Math.floor(Math.min(half - pad * 2, H - pad * 2));
+          // Grid ukuran 65% dari setengah layar, di tengah
+          const gSz = Math.floor(Math.min(half - pad * 4, H - pad * 6) * 0.75);
           const g1X = Math.floor((half - gSz) / 2);
           const g1Y = Math.floor((H - gSz) / 2);
           const g2X = half + Math.floor((half - gSz) / 2);
           const g2Y = g1Y;
           const pW = Math.floor(gSz / g),
             pH = Math.floor(gSz / g);
-          // Holding area = sama dengan grid area (kepingan tersebar di atas grid)
+          // Holding area = area di luar grid (sekitar grid)
           return {
             is2P: true,
             half,
@@ -678,25 +679,26 @@
             gSz,
             pW,
             pH,
-            h1X: g1X,
-            h1Y: g1Y,
-            h1W: gSz,
-            hH: gSz,
-            h2X: g2X,
-            h2Y: g2Y,
-            h2W: gSz,
-            hH: gSz,
+            // Holding: seluruh area setengah layar masing-masing
+            h1X: pad,
+            h1Y: pad,
+            h1W: half - pad * 2,
+            hH: H - pad * 2,
+            h2X: half + pad,
+            h2Y: pad,
+            h2W: half - pad * 2,
+            hH: H - pad * 2,
           };
         } else {
-          // Single player: grid fullscreen, kepingan tersebar di atas grid
-          const gSz = Math.floor(Math.min(W, H) * 0.92);
+          // Single player: grid di tengah ~65% layar
+          const gSz = Math.floor(Math.min(W, H) * 0.65);
           const gW = gSz,
             gH = gSz;
           const gX = Math.floor((W - gW) / 2);
           const gY = Math.floor((H - gH) / 2);
           const pW = Math.floor(gW / g),
             pH = Math.floor(gH / g);
-          // Holding area = grid area (kepingan tersebar di atas grid)
+          // Holding area = seluruh layar (kepingan tersebar di sekitar grid)
           return {
             is2P: false,
             gX,
@@ -705,29 +707,53 @@
             gH,
             pW,
             pH,
-            hX: gX,
-            hY: gY,
-            hW: gW,
-            hH: gH,
+            hX: 0,
+            hY: 0,
+            hW: W,
+            hH: H,
           };
         }
       }
 
+      // Cek apakah posisi (x,y) berada di dalam area grid
+      function isInsideGrid(x, y, L) {
+        if (L.is2P) {
+          const inG1 =
+            x >= L.g1X &&
+            x <= L.g1X + L.gSz &&
+            y >= L.g1Y &&
+            y <= L.g1Y + L.gSz;
+          const inG2 =
+            x >= L.g2X &&
+            x <= L.g2X + L.gSz &&
+            y >= L.g2Y &&
+            y <= L.g2Y + L.gSz;
+          return inG1 || inG2;
+        }
+        return x >= L.gX && x <= L.gX + L.gW && y >= L.gY && y <= L.gY + L.gH;
+      }
+
       function layoutHold(pieces, L) {
+        const W = $("game-canvas")?.width || window.innerWidth;
+        const H = $("game-canvas")?.height || window.innerHeight;
+
         if (L.is2P) {
           const p1 = pieces.filter((p) => !p.locked && p.owner === "p1");
           const p2 = pieces.filter((p) => !p.locked && p.owner === "p2");
-          // Sebar kepingan secara acak di atas grid masing-masing
-          const scatter = (arr, gX, gY, gSz, pW, pH) => {
+          const scatterAround = (arr, gX, gY, gSz, pW, pH, areaX, areaW) => {
             arr.forEach((p) => {
               if (p.x === 0 && p.y === 0) {
-                // Posisi awal acak di dalam grid
-                const maxC = Math.floor((gSz - pW) / pW);
-                const maxR = Math.floor((gSz - pH) / pH);
-                const c = Math.floor(Math.random() * (maxC + 1));
-                const r = Math.floor(Math.random() * (maxR + 1));
-                p.x = gX + c * pW + Math.floor(Math.random() * (pW * 0.3));
-                p.y = gY + r * pH + Math.floor(Math.random() * (pH * 0.3));
+                // Tempatkan di luar grid, di area sekitarnya
+                let x,
+                  y,
+                  tries = 0;
+                do {
+                  x = areaX + Math.floor(Math.random() * (areaW - pW));
+                  y = Math.floor(Math.random() * (H - pH));
+                  tries++;
+                } while (isInsideGrid(x + pW / 2, y + pH / 2, L) && tries < 20);
+                p.x = x;
+                p.y = y;
                 p.lx = p.x;
                 p.ly = p.y;
               }
@@ -735,25 +761,84 @@
               p.h = pH;
             });
           };
-          scatter(p1, L.g1X, L.g1Y, L.gSz, L.pW, L.pH);
-          scatter(p2, L.g2X, L.g2Y, L.gSz, L.pW, L.pH);
+          scatterAround(p1, L.g1X, L.g1Y, L.gSz, L.pW, L.pH, L.h1X, L.h1W);
+          scatterAround(p2, L.g2X, L.g2Y, L.gSz, L.pW, L.pH, L.h2X, L.h2W);
         } else {
           const ul = pieces.filter((p) => !p.locked);
           const { gX, gY, gW, gH, pW, pH } = L;
-          // Sebar kepingan secara acak di atas grid
-          ul.forEach((p) => {
+          // Sebar kepingan di sekitar grid (bukan di atas grid)
+          // Bagi area menjadi 4 zona: atas, bawah, kiri, kanan grid
+          const zones = [
+            { x: 0, y: 0, w: W, h: gY }, // atas
+            { x: 0, y: gY + gH, w: W, h: H - gY - gH }, // bawah
+            { x: 0, y: gY, w: gX, h: gH }, // kiri
+            { x: gX + gW, y: gY, w: W - gX - gW, h: gH }, // kanan
+          ].filter((z) => z.w > pW + 4 && z.h > pH + 4);
+
+          ul.forEach((p, i) => {
             if (p.x === 0 && p.y === 0) {
-              const maxC = Math.floor((gW - pW) / pW);
-              const maxR = Math.floor((gH - pH) / pH);
-              const c = Math.floor(Math.random() * (maxC + 1));
-              const r = Math.floor(Math.random() * (maxR + 1));
-              p.x = gX + c * pW + Math.floor(Math.random() * (pW * 0.2));
-              p.y = gY + r * pH + Math.floor(Math.random() * (pH * 0.2));
+              // Pilih zona secara round-robin
+              const zone = zones[i % zones.length];
+              const maxX = Math.max(0, zone.w - pW - 4);
+              const maxY = Math.max(0, zone.h - pH - 4);
+              p.x = zone.x + 4 + Math.floor(Math.random() * maxX);
+              p.y = zone.y + 4 + Math.floor(Math.random() * maxY);
               p.lx = p.x;
               p.ly = p.y;
             }
             p.w = pW;
             p.h = pH;
+          });
+        }
+      }
+
+      // Tempatkan sebagian kepingan di dalam grid saat game dimulai
+      // Sisakan 1 slot kosong agar kepingan bisa bergeser (sliding puzzle style)
+      function placeInitialPiecesInGrid(pieces, L) {
+        const g = DIFF_CFG[S.diff].g;
+        const n = g * g;
+        const numInGrid = n - 1; // sisakan 1 slot kosong
+
+        if (L.is2P) {
+          const p1 = pieces.filter((p) => p.owner === "p1");
+          const p2 = pieces.filter((p) => p.owner === "p2");
+          const placeInGrid = (arr, gX, gY, pW, pH) => {
+            // Pilih slot acak untuk dikosongkan
+            const emptySlot = Math.floor(Math.random() * n);
+            let slotIdx = 0;
+            arr.forEach((p, i) => {
+              if (i < numInGrid) {
+                // Tempatkan di grid, skip empty slot
+                if (slotIdx === emptySlot) slotIdx++;
+                const r = Math.floor(slotIdx / g),
+                  c = slotIdx % g;
+                p.x = gX + c * pW;
+                p.y = gY + r * pH;
+                p.lx = p.x;
+                p.ly = p.y;
+                slotIdx++;
+              }
+              // Kepingan sisanya tetap di luar grid (sudah diatur layoutHold)
+            });
+          };
+          placeInGrid(p1, L.g1X, L.g1Y, L.pW, L.pH);
+          placeInGrid(p2, L.g2X, L.g2Y, L.pW, L.pH);
+        } else {
+          const ul = pieces.filter((p) => !p.locked);
+          const { gX, gY, pW, pH } = L;
+          const emptySlot = Math.floor(Math.random() * n);
+          let slotIdx = 0;
+          ul.forEach((p, i) => {
+            if (i < numInGrid) {
+              if (slotIdx === emptySlot) slotIdx++;
+              const r = Math.floor(slotIdx / g),
+                c = slotIdx % g;
+              p.x = gX + c * pW;
+              p.y = gY + r * pH;
+              p.lx = p.x;
+              p.ly = p.y;
+              slotIdx++;
+            }
           });
         }
       }
@@ -2398,6 +2483,8 @@
             S.is2P,
           );
           layoutHold(S.pieces, S.layout);
+          // Tempatkan sebagian kepingan di dalam grid (sisakan 1 slot kosong)
+          placeInitialPiecesInGrid(S.pieces, S.layout);
 
           // AR: attach stream to game-video
           const gv = $("game-video");
