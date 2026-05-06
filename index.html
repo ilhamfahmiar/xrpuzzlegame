@@ -10,7 +10,7 @@
       onerror="window._mpLoadError = true"
     ></script>
     <script
-      src="/mediapipe/hands/hands.js"
+      src="./mediapipe/hands/hands.js"
       crossorigin="anonymous"
       onerror="window._mpLoadError = true"
     ></script>
@@ -1880,7 +1880,7 @@
 
           // Step 3: Setup MediaPipe Hands
           const hands = new Hands({
-            locateFile: (f) => `/mediapipe/hands/${f}`,
+            locateFile: (f) => `./mediapipe/hands/${f}`,
           });
 
           hands.setOptions({
