@@ -15,8 +15,5 @@ Assets/Scripts/
 # Node modules (jika ada)
 node_modules/
 
-# MediaPipe local model files (large binary files, loaded from CDN)
-mediapipe/
-
 # Logs
 *.log
