@@ -1,0 +1,711 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Your Face Puzzle — Susun puzzle dari foto wajahmu sendiri!"
+    />
+    <title>Your Face Puzzle</title>
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body>
+    <!-- Skip link untuk aksesibilitas keyboard -->
+    <a class="skip-link" href="#screen-home">Lewati ke konten utama</a>
+
+    <!-- ═══════════════════════════════════════════════════
+       LAYAR HOME
+  ════════════════════════════════════════════════════ -->
+    <div id="screen-home" class="screen active" role="main">
+      <div class="screen-content screen-content--center">
+        <div aria-hidden="true" style="font-size: 4rem">🧩</div>
+        <h1 class="game-title">Your Face Puzzle</h1>
+        <p class="game-subtitle">Susun puzzle dari foto wajahmu sendiri!</p>
+
+        <nav class="home-nav" aria-label="Menu utama">
+          <button
+            id="btn-play"
+            class="btn btn--primary"
+            aria-label="Mulai bermain"
+          >
+            📸 Mulai Bermain
+          </button>
+          <button
+            id="btn-leaderboard-home"
+            class="btn btn--secondary"
+            aria-label="Lihat papan skor"
+          >
+            🏆 Papan Skor
+          </button>
+          <button
+            id="btn-how-to-play"
+            class="btn btn--ghost"
+            aria-label="Cara bermain"
+          >
+            ❓ Cara Bermain
+          </button>
+        </nav>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════
+       LAYAR KAMERA
+  ════════════════════════════════════════════════════ -->
+    <div
+      id="screen-camera"
+      class="screen"
+      role="main"
+      aria-label="Layar kamera"
+    >
+      <div class="screen-content screen-content--center">
+        <h2 class="screen-title">📸 Ambil Selfie</h2>
+        <p class="screen-subtitle">Posisikan wajahmu di dalam bingkai oval</p>
+
+        <!-- Live camera feed -->
+        <div
+          id="camera-container"
+          class="camera-container"
+          aria-label="Tampilan kamera"
+        >
+          <video
+            id="camera-feed"
+            autoplay
+            playsinline
+            muted
+            aria-label="Live feed kamera"
+          ></video>
+          <div class="camera-overlay" aria-hidden="true">
+            <div class="camera-oval-guide"></div>
+            <p class="camera-guide-text">Posisikan wajahmu di sini</p>
+          </div>
+          <button
+            id="btn-capture"
+            class="btn btn--capture"
+            aria-label="Ambil foto"
+          >
+            📷
+          </button>
+        </div>
+
+        <!-- Preview foto yang diambil -->
+        <div id="camera-preview" class="camera-preview" hidden>
+          <canvas
+            id="capture-canvas"
+            aria-label="Pratinjau foto yang diambil"
+          ></canvas>
+          <div class="camera-preview-actions">
+            <button
+              id="btn-use-photo"
+              class="btn btn--primary"
+              aria-label="Gunakan foto ini"
+            >
+              ✅ Gunakan Foto Ini
+            </button>
+            <button
+              id="btn-retake"
+              class="btn btn--secondary"
+              aria-label="Ambil ulang foto"
+            >
+              🔄 Ambil Ulang
+            </button>
+          </div>
+        </div>
+
+        <!-- Error kamera -->
+        <div id="camera-error" class="camera-error" hidden role="alert">
+          <p id="camera-error-message" class="error-message">
+            Gagal mengakses kamera.
+          </p>
+          <button
+            id="btn-retry-camera"
+            class="btn btn--secondary"
+            aria-label="Coba lagi akses kamera"
+          >
+            🔄 Coba Lagi
+          </button>
+        </div>
+
+        <button
+          id="btn-back-from-camera"
+          class="btn btn--ghost btn--back"
+          aria-label="Kembali ke halaman utama"
+        >
+          ← Kembali
+        </button>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════
+       LAYAR PILIH KESULITAN
+  ════════════════════════════════════════════════════ -->
+    <div
+      id="screen-difficulty"
+      class="screen"
+      role="main"
+      aria-label="Layar pilih kesulitan"
+    >
+      <div class="screen-content screen-content--center">
+        <h2 class="screen-title">🎮 Pilih Kesulitan</h2>
+        <p class="screen-subtitle">Semakin sulit, semakin besar bonusnya!</p>
+
+        <div
+          class="difficulty-options"
+          role="group"
+          aria-label="Pilihan tingkat kesulitan"
+        >
+          <button
+            class="btn btn--difficulty"
+            data-difficulty="easy"
+            aria-pressed="false"
+            aria-label="Mudah: grid 3×3, waktu 5 menit"
+          >
+            <span class="difficulty-label">😊 Mudah</span>
+            <span class="difficulty-detail">3×3 kepingan · 5 menit</span>
+          </button>
+
+          <button
+            class="btn btn--difficulty"
+            data-difficulty="medium"
+            aria-pressed="false"
+            aria-label="Sedang: grid 4×4, waktu 3 menit"
+          >
+            <span class="difficulty-label">😤 Sedang</span>
+            <span class="difficulty-detail">4×4 kepingan · 3 menit</span>
+          </button>
+
+          <button
+            class="btn btn--difficulty"
+            data-difficulty="hard"
+            aria-pressed="false"
+            aria-label="Sulit: grid 5×5, waktu 2 menit"
+          >
+            <span class="difficulty-label">🔥 Sulit</span>
+            <span class="difficulty-detail">5×5 kepingan · 2 menit</span>
+          </button>
+        </div>
+
+        <!-- Toggle aksesibilitas -->
+        <div
+          class="accessibility-toggles"
+          aria-label="Pengaturan aksesibilitas"
+        >
+          <label class="toggle-label">
+            <input
+              id="toggle-animations"
+              class="toggle-input"
+              type="checkbox"
+              aria-label="Nonaktifkan animasi"
+            />
+            <span class="toggle-text">Nonaktifkan Animasi</span>
+          </label>
+          <label class="toggle-label">
+            <input
+              id="toggle-audio"
+              class="toggle-input"
+              type="checkbox"
+              aria-label="Aktifkan efek suara"
+            />
+            <span class="toggle-text">Aktifkan Efek Suara</span>
+          </label>
+        </div>
+
+        <button
+          id="btn-back-from-difficulty"
+          class="btn btn--ghost btn--back"
+          aria-label="Kembali ke layar kamera"
+        >
+          ← Kembali
+        </button>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════
+       LAYAR GAME
+  ════════════════════════════════════════════════════ -->
+    <div
+      id="screen-game"
+      class="screen"
+      role="main"
+      aria-label="Layar permainan"
+    >
+      <div class="screen-content screen-content--game">
+        <!-- Header HUD -->
+        <header class="game-header" aria-label="Status permainan">
+          <div class="game-timer" aria-live="polite" aria-label="Timer">
+            <span class="timer-label">Waktu</span>
+            <span id="timer-display" class="timer-value" aria-label="Sisa waktu"
+              >05:00</span
+            >
+          </div>
+
+          <div
+            id="progress-display"
+            class="game-progress"
+            aria-live="polite"
+            aria-label="Progres puzzle"
+          >
+            0 / 0 kepingan
+          </div>
+
+          <div class="game-actions">
+            <button
+              id="btn-preview"
+              class="btn btn--icon"
+              aria-label="Tahan untuk melihat pratinjau foto asli"
+            >
+              👁 Pratinjau
+            </button>
+            <button
+              id="btn-pause"
+              class="btn btn--icon"
+              aria-label="Jeda permainan"
+            >
+              ⏸ Jeda
+            </button>
+            <button
+              id="btn-exit-game"
+              class="btn btn--icon"
+              aria-label="Keluar dari permainan"
+            >
+              ✕ Keluar
+            </button>
+          </div>
+        </header>
+
+        <!-- Canvas puzzle -->
+        <div class="game-canvas-wrapper">
+          <canvas
+            id="puzzle-canvas"
+            aria-label="Area puzzle — seret kepingan ke posisi yang benar"
+            role="img"
+          ></canvas>
+        </div>
+      </div>
+
+      <!-- Pause overlay -->
+      <div
+        id="pause-overlay"
+        class="pause-overlay"
+        hidden
+        role="dialog"
+        aria-modal="true"
+        aria-label="Permainan dijeda"
+      >
+        <div class="pause-content">
+          <h3>⏸ Dijeda</h3>
+          <p
+            style="
+              color: var(--color-text-muted);
+              margin-bottom: var(--space-lg);
+            "
+          >
+            Permainan sedang dijeda
+          </p>
+          <button
+            id="btn-resume"
+            class="btn btn--primary"
+            aria-label="Lanjutkan permainan"
+          >
+            ▶ Lanjutkan
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════
+       LAYAR HASIL
+  ════════════════════════════════════════════════════ -->
+    <div
+      id="screen-result"
+      class="screen"
+      role="main"
+      aria-label="Layar hasil permainan"
+    >
+      <div class="screen-content screen-content--center">
+        <h2 id="result-title" class="result-title" aria-live="polite">
+          🎉 Selamat!
+        </h2>
+        <p id="result-message" class="result-message">
+          Kamu berhasil menyusun puzzle!
+        </p>
+
+        <!-- Kartu skor -->
+        <div class="result-score-card" aria-label="Detail skor">
+          <div class="score-display">
+            <span class="score-label">Skor</span>
+            <span id="result-score" class="score-value" aria-live="polite"
+              >0</span
+            >
+          </div>
+          <div class="score-details">
+            <span
+              id="result-difficulty"
+              class="score-detail"
+              aria-label="Tingkat kesulitan"
+              >Sedang</span
+            >
+            <span
+              id="result-time"
+              class="score-detail"
+              aria-label="Durasi permainan"
+              >Durasi: 00:00</span
+            >
+          </div>
+        </div>
+
+        <!-- Form simpan nama pemain -->
+        <div
+          id="player-name-form"
+          class="player-name-form"
+          hidden
+          aria-label="Form simpan skor"
+        >
+          <label class="form-label" for="input-player-name">
+            🏆 Skor kamu masuk top 10! Masukkan namamu:
+          </label>
+          <input
+            id="input-player-name"
+            class="form-input"
+            type="text"
+            maxlength="20"
+            placeholder="Nama pemain (maks. 20 karakter)"
+            aria-label="Nama pemain untuk papan skor"
+            autocomplete="off"
+          />
+          <button
+            id="btn-save-score"
+            class="btn btn--primary"
+            aria-label="Simpan skor ke papan skor"
+          >
+            💾 Simpan Skor
+          </button>
+        </div>
+
+        <!-- Tombol aksi hasil -->
+        <div class="result-actions">
+          <button
+            id="btn-play-again"
+            class="btn btn--primary"
+            aria-label="Main lagi"
+          >
+            🔄 Main Lagi
+          </button>
+          <button
+            id="btn-leaderboard-result"
+            class="btn btn--secondary"
+            aria-label="Lihat papan skor"
+          >
+            🏆 Papan Skor
+          </button>
+          <button
+            id="btn-home-result"
+            class="btn btn--ghost"
+            aria-label="Kembali ke halaman utama"
+          >
+            🏠 Beranda
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════
+       LAYAR LEADERBOARD
+  ════════════════════════════════════════════════════ -->
+    <div
+      id="screen-leaderboard"
+      class="screen"
+      role="main"
+      aria-label="Layar papan skor"
+    >
+      <div class="screen-content">
+        <h2 class="screen-title">🏆 Papan Skor</h2>
+
+        <!-- Tab kesulitan -->
+        <div
+          class="leaderboard-tabs"
+          role="tablist"
+          aria-label="Pilih tingkat kesulitan"
+        >
+          <button
+            class="tab-btn tab-btn--active"
+            data-difficulty="easy"
+            role="tab"
+            aria-selected="true"
+            aria-controls="leaderboard-table-easy"
+            aria-label="Tab papan skor Mudah"
+          >
+            😊 Mudah
+          </button>
+          <button
+            class="tab-btn"
+            data-difficulty="medium"
+            role="tab"
+            aria-selected="false"
+            aria-controls="leaderboard-table-medium"
+            aria-label="Tab papan skor Sedang"
+          >
+            😤 Sedang
+          </button>
+          <button
+            class="tab-btn"
+            data-difficulty="hard"
+            role="tab"
+            aria-selected="false"
+            aria-controls="leaderboard-table-hard"
+            aria-label="Tab papan skor Sulit"
+          >
+            🔥 Sulit
+          </button>
+        </div>
+
+        <!-- Tabel Mudah -->
+        <div
+          id="leaderboard-table-easy"
+          role="tabpanel"
+          aria-label="Papan skor Mudah"
+        >
+          <table
+            class="leaderboard-table"
+            aria-label="Daftar skor tingkat Mudah"
+          >
+            <thead>
+              <tr>
+                <th scope="col">#</th>
+                <th scope="col">Nama</th>
+                <th scope="col">Skor</th>
+                <th scope="col">Kesulitan</th>
+                <th scope="col">Tanggal</th>
+              </tr>
+            </thead>
+            <tbody id="leaderboard-body-easy"></tbody>
+          </table>
+          <p id="leaderboard-empty-easy" class="leaderboard-empty" hidden>
+            Belum ada skor untuk tingkat Mudah. Jadilah yang pertama!
+          </p>
+        </div>
+
+        <!-- Tabel Sedang -->
+        <div
+          id="leaderboard-table-medium"
+          role="tabpanel"
+          aria-label="Papan skor Sedang"
+          hidden
+        >
+          <table
+            class="leaderboard-table"
+            aria-label="Daftar skor tingkat Sedang"
+          >
+            <thead>
+              <tr>
+                <th scope="col">#</th>
+                <th scope="col">Nama</th>
+                <th scope="col">Skor</th>
+                <th scope="col">Kesulitan</th>
+                <th scope="col">Tanggal</th>
+              </tr>
+            </thead>
+            <tbody id="leaderboard-body-medium"></tbody>
+          </table>
+          <p id="leaderboard-empty-medium" class="leaderboard-empty" hidden>
+            Belum ada skor untuk tingkat Sedang. Jadilah yang pertama!
+          </p>
+        </div>
+
+        <!-- Tabel Sulit -->
+        <div
+          id="leaderboard-table-hard"
+          role="tabpanel"
+          aria-label="Papan skor Sulit"
+          hidden
+        >
+          <table
+            class="leaderboard-table"
+            aria-label="Daftar skor tingkat Sulit"
+          >
+            <thead>
+              <tr>
+                <th scope="col">#</th>
+                <th scope="col">Nama</th>
+                <th scope="col">Skor</th>
+                <th scope="col">Kesulitan</th>
+                <th scope="col">Tanggal</th>
+              </tr>
+            </thead>
+            <tbody id="leaderboard-body-hard"></tbody>
+          </table>
+          <p id="leaderboard-empty-hard" class="leaderboard-empty" hidden>
+            Belum ada skor untuk tingkat Sulit. Jadilah yang pertama!
+          </p>
+        </div>
+
+        <button
+          id="btn-back-from-leaderboard"
+          class="btn btn--ghost btn--back"
+          aria-label="Kembali ke halaman utama"
+        >
+          ← Kembali
+        </button>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════
+       LAYAR CARA BERMAIN
+  ════════════════════════════════════════════════════ -->
+    <div
+      id="screen-how-to-play"
+      class="screen"
+      role="main"
+      aria-label="Layar cara bermain"
+    >
+      <div class="screen-content">
+        <h2 class="screen-title">❓ Cara Bermain</h2>
+
+        <div class="how-to-play-steps" role="list">
+          <div class="step" role="listitem">
+            <span class="step-icon" aria-hidden="true">📸</span>
+            <div>
+              <h3 class="step-title">1. Ambil Selfie</h3>
+              <p class="step-desc">
+                Izinkan akses kamera dan posisikan wajahmu di dalam bingkai
+                oval. Tekan tombol kamera untuk mengambil foto.
+              </p>
+            </div>
+          </div>
+
+          <div class="step" role="listitem">
+            <span class="step-icon" aria-hidden="true">🎮</span>
+            <div>
+              <h3 class="step-title">2. Pilih Kesulitan</h3>
+              <p class="step-desc">
+                Pilih tingkat kesulitan: Mudah (3×3), Sedang (4×4), atau Sulit
+                (5×5). Semakin sulit, semakin besar bonusnya!
+              </p>
+            </div>
+          </div>
+
+          <div class="step" role="listitem">
+            <span class="step-icon" aria-hidden="true">🧩</span>
+            <div>
+              <h3 class="step-title">3. Susun Puzzle</h3>
+              <p class="step-desc">
+                Seret kepingan puzzle dari area penampungan ke posisi yang benar
+                di grid. Kepingan yang benar akan terkunci otomatis.
+              </p>
+            </div>
+          </div>
+
+          <div class="step" role="listitem">
+            <span class="step-icon" aria-hidden="true">⏱</span>
+            <div>
+              <h3 class="step-title">4. Kejar Waktu</h3>
+              <p class="step-desc">
+                Selesaikan puzzle sebelum waktu habis. Semakin cepat kamu
+                selesai, semakin tinggi skormu!
+              </p>
+            </div>
+          </div>
+
+          <div class="step" role="listitem">
+            <span class="step-icon" aria-hidden="true">🏆</span>
+            <div>
+              <h3 class="step-title">5. Simpan Skor</h3>
+              <p class="step-desc">
+                Jika skormu masuk top 10, masukkan namamu untuk disimpan di
+                papan skor!
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="how-to-play-tips" aria-label="Tips bermain">
+          <h3>💡 Tips</h3>
+          <ul>
+            <li>
+              Tahan tombol "Pratinjau" untuk melihat foto asli sebagai panduan
+            </li>
+            <li>Gunakan tombol "Jeda" jika perlu istirahat sejenak</li>
+            <li>Nonaktifkan animasi di pengaturan jika terasa lambat</li>
+            <li>Skor dihitung dari sisa waktu × 10 + bonus kesulitan</li>
+          </ul>
+        </div>
+
+        <button
+          id="btn-back-from-how-to-play"
+          class="btn btn--ghost btn--back"
+          aria-label="Kembali ke halaman utama"
+        >
+          ← Kembali
+        </button>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════
+       OVERLAY: SPINNER LOADING
+  ════════════════════════════════════════════════════ -->
+    <div
+      id="spinner"
+      class="spinner-overlay"
+      hidden
+      role="status"
+      aria-live="polite"
+      aria-label="Memuat"
+    >
+      <div class="spinner-content">
+        <div class="spinner-wheel" aria-hidden="true"></div>
+        <p id="spinner-message" class="spinner-message">Memuat...</p>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════
+       OVERLAY: DIALOG KONFIRMASI
+  ════════════════════════════════════════════════════ -->
+    <div
+      id="dialog"
+      class="dialog-overlay"
+      hidden
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="dialog-title"
+      aria-describedby="dialog-message"
+    >
+      <div class="dialog-box">
+        <h3 id="dialog-title" class="dialog-title">Konfirmasi</h3>
+        <p id="dialog-message" class="dialog-message">Apakah kamu yakin?</p>
+        <div class="dialog-actions">
+          <button
+            id="btn-dialog-yes"
+            class="btn btn--danger"
+            aria-label="Ya, konfirmasi"
+          >
+            Ya
+          </button>
+          <button
+            id="btn-dialog-no"
+            class="btn btn--secondary"
+            aria-label="Tidak, batalkan"
+          >
+            Tidak
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════
+       TOAST NOTIFIKASI
+  ════════════════════════════════════════════════════ -->
+    <div
+      id="toast"
+      class="toast"
+      hidden
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+    >
+      <span id="toast-message" class="toast-message"></span>
+    </div>
+
+    <!-- Entry point ES6 module -->
+    <script type="module" src="js/app.js"></script>
+  </body>
+</html>

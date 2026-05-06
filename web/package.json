@@ -1,0 +1,20 @@
+{
+  "name": "your-face-puzzle-web",
+  "version": "1.0.0",
+  "description": "Your Face Puzzle — game puzzle berbasis web",
+  "type": "module",
+  "scripts": {
+    "test": "vitest --run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^2.1.8",
+    "jsdom": "^25.0.1",
+    "vitest": "^2.1.8"
+  },
+  "dependencies": {
+    "@mediapipe/camera_utils": "^0.3.1675466862",
+    "@mediapipe/hands": "^0.4.1675469240",
+    "fast-check": "^3.22.0"
+  }
+}

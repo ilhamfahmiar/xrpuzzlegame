@@ -1,0 +1,1093 @@
+/* ============================================================
+   Your Face Puzzle — style.css
+   ============================================================ */
+
+/* ============================================================
+   1. CSS Custom Properties
+   ============================================================ */
+:root {
+  /* Colors */
+  --color-primary: #6c63ff;
+  --color-primary-dark: #5a52d5;
+  --color-secondary: #ff6584;
+  --color-bg: #0f0e17;
+  --color-surface: #1a1a2e;
+  --color-surface-2: #252540;
+  --color-text: #fffffe;
+  --color-text-muted: #a7a9be;
+  --color-success: #2cb67d;
+  --color-warning: #ff8906;
+  --color-danger: #e53170;
+  --color-border: rgba(255, 255, 255, 0.1);
+
+  /* Typography */
+  --font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-size-base: 1rem; /* 16px */
+  --font-size-sm: 0.875rem; /* 14px */
+  --font-size-lg: 1.25rem;
+  --font-size-xl: 1.5rem;
+  --font-size-2xl: 2rem;
+  --font-size-3xl: 2.5rem;
+
+  /* Spacing */
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+  --space-2xl: 3rem;
+
+  /* Canvas */
+  --canvas-size: clamp(280px, min(90vw, 90vh - 160px), 600px);
+
+  /* Radius */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1.25rem;
+  --radius-full: 9999px;
+
+  /* Transitions */
+  --transition-fast: 150ms ease;
+  --transition-base: 250ms ease;
+  --transition-slow: 400ms ease;
+
+  /* Z-index */
+  --z-overlay: 100;
+  --z-dialog: 200;
+  --z-toast: 300;
+}
+
+/* ============================================================
+   2. Reset & Base Styles
+   ============================================================ */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* Pastikan [hidden] selalu tersembunyi — tidak bisa di-override CSS lain */
+[hidden] {
+  display: none !important;
+}
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-family);
+  font-size: var(--font-size-base);
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  line-height: 1.6;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+img,
+video,
+canvas {
+  display: block;
+  max-width: 100%;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+
+input {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+ul,
+ol {
+  list-style: none;
+}
+
+/* ============================================================
+   3. Layout Utama & Screen Management (SPA)
+   ============================================================ */
+.screen {
+  display: none;
+  min-height: 100vh;
+  width: 100%;
+}
+
+.screen.active {
+  display: flex;
+  flex-direction: column;
+}
+
+.screen-content {
+  flex: 1;
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: var(--space-lg) var(--space-md);
+}
+
+.screen-content--center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: var(--space-lg);
+}
+
+.screen-content--game {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-sm) var(--space-md);
+  max-width: 100%;
+}
+
+.screen-title {
+  font-size: var(--font-size-xl);
+  font-weight: 700;
+  margin-bottom: var(--space-md);
+}
+
+.screen-subtitle {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-base);
+}
+
+/* ============================================================
+   4. Komponen: Tombol
+   ============================================================ */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0.625rem 1.25rem;
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  transition:
+    background-color var(--transition-fast),
+    transform var(--transition-fast),
+    box-shadow var(--transition-fast);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.btn:focus-visible {
+  outline: 3px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.btn:active {
+  transform: scale(0.97);
+}
+
+.btn--primary {
+  background-color: var(--color-primary);
+  color: var(--color-text);
+}
+
+.btn--primary:hover {
+  background-color: var(--color-primary-dark);
+  box-shadow: 0 4px 16px rgba(108, 99, 255, 0.4);
+}
+
+.btn--secondary {
+  background-color: var(--color-surface-2);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+}
+
+.btn--secondary:hover {
+  background-color: var(--color-surface);
+  border-color: var(--color-primary);
+}
+
+.btn--ghost {
+  background-color: transparent;
+  color: var(--color-text-muted);
+}
+
+.btn--ghost:hover {
+  color: var(--color-text);
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.btn--danger {
+  background-color: transparent;
+  color: var(--color-danger);
+  border: 1px solid var(--color-danger);
+}
+
+.btn--danger:hover {
+  background-color: var(--color-danger);
+  color: var(--color-text);
+}
+
+.btn--icon {
+  padding: 0.5rem 0.75rem;
+  font-size: var(--font-size-sm);
+  background-color: var(--color-surface-2);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.btn--icon:hover {
+  background-color: var(--color-surface);
+  border-color: var(--color-primary);
+}
+
+.btn--back {
+  align-self: flex-start;
+  margin-top: var(--space-md);
+}
+
+.btn--capture {
+  position: absolute;
+  bottom: var(--space-lg);
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: var(--color-secondary);
+  color: var(--color-text);
+  border-radius: var(--radius-full);
+  width: 64px;
+  height: 64px;
+  font-size: 1.5rem;
+  padding: 0;
+  box-shadow: 0 4px 20px rgba(255, 101, 132, 0.5);
+}
+
+.btn--capture:hover {
+  background-color: #e5506e;
+  box-shadow: 0 6px 24px rgba(255, 101, 132, 0.7);
+}
+
+/* ============================================================
+   5. Layar Home
+   ============================================================ */
+.game-title {
+  font-size: var(--font-size-3xl);
+  font-weight: 800;
+  background: linear-gradient(
+    135deg,
+    var(--color-primary),
+    var(--color-secondary)
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  line-height: 1.2;
+}
+
+.game-subtitle {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-lg);
+}
+
+.home-nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  width: 100%;
+  max-width: 320px;
+}
+
+.home-nav .btn {
+  width: 100%;
+  padding: 0.875rem 1.5rem;
+  font-size: var(--font-size-lg);
+}
+
+/* ============================================================
+   6. Layar Kamera
+   ============================================================ */
+.camera-container {
+  position: relative;
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background-color: #000;
+  aspect-ratio: 3/4;
+}
+
+#camera-feed {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1); /* Mirror untuk selfie */
+}
+
+.camera-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.camera-oval-guide {
+  width: 65%;
+  aspect-ratio: 3/4;
+  border: 3px solid rgba(108, 99, 255, 0.8);
+  border-radius: 50%;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.4);
+}
+
+.camera-guide-text {
+  margin-top: var(--space-md);
+  color: rgba(255, 255, 255, 0.9);
+  font-size: var(--font-size-sm);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+}
+
+.camera-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-md);
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+#capture-canvas {
+  width: 100%;
+  border-radius: var(--radius-lg);
+  border: 2px solid var(--color-border);
+}
+
+.camera-preview-actions {
+  display: flex;
+  gap: var(--space-md);
+  width: 100%;
+}
+
+.camera-preview-actions .btn {
+  flex: 1;
+}
+
+.camera-error {
+  text-align: center;
+  padding: var(--space-xl);
+  background-color: var(--color-surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-danger);
+}
+
+.error-message {
+  color: var(--color-danger);
+  margin-bottom: var(--space-md);
+}
+
+/* ============================================================
+   7. Layar Pilih Kesulitan
+   ============================================================ */
+.difficulty-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  width: 100%;
+  max-width: 400px;
+}
+
+.btn--difficulty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: var(--space-md) var(--space-lg);
+  background-color: var(--color-surface);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  text-align: left;
+  transition:
+    border-color var(--transition-fast),
+    background-color var(--transition-fast),
+    transform var(--transition-fast);
+}
+
+.btn--difficulty:hover,
+.btn--difficulty[aria-pressed="true"] {
+  border-color: var(--color-primary);
+  background-color: rgba(108, 99, 255, 0.1);
+  transform: translateY(-2px);
+}
+
+.difficulty-label {
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.difficulty-detail {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
+
+.accessibility-toggles {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  width: 100%;
+  max-width: 400px;
+  padding: var(--space-md);
+  background-color: var(--color-surface);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+}
+
+.toggle-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.toggle-input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--color-primary);
+  cursor: pointer;
+}
+
+.toggle-text {
+  user-select: none;
+}
+
+/* ============================================================
+   8. Layar Game
+   ============================================================ */
+.game-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: var(--space-sm) 0;
+  flex-wrap: wrap;
+}
+
+.game-timer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 80px;
+}
+
+.timer-label {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.timer-value {
+  font-size: var(--font-size-xl);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text);
+  transition: color var(--transition-fast);
+}
+
+.timer-value.timer-warning {
+  color: var(--color-warning);
+  animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+.game-progress {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.game-actions {
+  display: flex;
+  gap: var(--space-xs);
+  flex-wrap: wrap;
+}
+
+.game-canvas-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  padding: var(--space-sm) 0;
+}
+
+#puzzle-canvas {
+  width: var(--canvas-size);
+  height: var(--canvas-size);
+  border-radius: var(--radius-md);
+  border: 2px solid var(--color-border);
+  background-color: var(--color-surface);
+  touch-action: none; /* Prevent scroll during drag */
+  cursor: grab;
+}
+
+#puzzle-canvas:active {
+  cursor: grabbing;
+}
+
+.pause-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(15, 14, 23, 0.9);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--z-overlay);
+}
+
+.pause-overlay:not([hidden]) {
+  display: flex;
+}
+
+.pause-content {
+  text-align: center;
+  background-color: var(--color-surface);
+  padding: var(--space-2xl);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+}
+
+.pause-content h3 {
+  font-size: var(--font-size-xl);
+  margin-bottom: var(--space-lg);
+}
+
+/* ============================================================
+   9. Layar Hasil
+   ============================================================ */
+.result-title {
+  font-size: var(--font-size-2xl);
+  font-weight: 800;
+}
+
+.result-message {
+  color: var(--color-text-muted);
+}
+
+.result-score-card {
+  background: linear-gradient(
+    135deg,
+    var(--color-surface),
+    var(--color-surface-2)
+  );
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-xl);
+  width: 100%;
+  max-width: 320px;
+  text-align: center;
+}
+
+.score-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.score-label {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.score-value {
+  font-size: var(--font-size-3xl);
+  font-weight: 800;
+  color: var(--color-primary);
+}
+
+.score-details {
+  display: flex;
+  gap: var(--space-md);
+  justify-content: center;
+  margin-top: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.score-detail {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.player-name-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  width: 100%;
+  max-width: 320px;
+}
+
+.form-label {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.form-input {
+  padding: 0.625rem var(--space-md);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  font-size: var(--font-size-base);
+  transition: border-color var(--transition-fast);
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.result-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  width: 100%;
+  max-width: 320px;
+}
+
+.result-actions .btn {
+  width: 100%;
+}
+
+/* ============================================================
+   10. Layar Leaderboard
+   ============================================================ */
+.leaderboard-tabs {
+  display: flex;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-lg);
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: var(--space-xs);
+}
+
+.tab-btn {
+  padding: 0.5rem 1rem;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-muted);
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  cursor: pointer;
+  transition:
+    color var(--transition-fast),
+    background-color var(--transition-fast);
+  min-height: 44px;
+}
+
+.tab-btn:hover {
+  color: var(--color-text);
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.tab-btn--active,
+.tab-btn[aria-selected="true"] {
+  color: var(--color-primary);
+  border-bottom: 2px solid var(--color-primary);
+}
+
+.leaderboard-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-sm);
+}
+
+.leaderboard-table th {
+  text-align: left;
+  padding: var(--space-sm) var(--space-md);
+  color: var(--color-text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.leaderboard-table td {
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.leaderboard-table tr:hover td {
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+.leaderboard-table tr.current-player td {
+  background-color: rgba(108, 99, 255, 0.15);
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.leaderboard-empty {
+  text-align: center;
+  color: var(--color-text-muted);
+  padding: var(--space-2xl);
+}
+
+/* ============================================================
+   11. Layar Cara Bermain
+   ============================================================ */
+.how-to-play-steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.step {
+  display: flex;
+  gap: var(--space-md);
+  align-items: flex-start;
+  background-color: var(--color-surface);
+  padding: var(--space-md);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+}
+
+.step-icon {
+  font-size: 2rem;
+  flex-shrink: 0;
+}
+
+.step-title {
+  font-size: var(--font-size-base);
+  font-weight: 700;
+  margin-bottom: var(--space-xs);
+}
+
+.step-desc {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.how-to-play-tips {
+  width: 100%;
+  max-width: 600px;
+  margin: var(--space-lg) auto 0;
+  padding: var(--space-md);
+  background-color: var(--color-surface);
+  border-radius: var(--radius-md);
+  border-left: 3px solid var(--color-primary);
+}
+
+.how-to-play-tips h3 {
+  font-size: var(--font-size-base);
+  font-weight: 700;
+  margin-bottom: var(--space-sm);
+}
+
+.how-to-play-tips li {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  padding: var(--space-xs) 0;
+  padding-left: var(--space-md);
+  position: relative;
+}
+
+.how-to-play-tips li::before {
+  content: "•";
+  position: absolute;
+  left: 0;
+  color: var(--color-primary);
+}
+
+/* ============================================================
+   12. Overlay: Spinner Loading
+   ============================================================ */
+.spinner-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(15, 14, 23, 0.85);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--z-overlay);
+  backdrop-filter: blur(4px);
+}
+
+.spinner-overlay:not([hidden]) {
+  display: flex;
+}
+
+.spinner-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.spinner-wheel {
+  width: 48px;
+  height: 48px;
+  border: 4px solid rgba(108, 99, 255, 0.2);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spinner-message {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+/* ============================================================
+   13. Overlay: Dialog Konfirmasi
+   ============================================================ */
+.dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(15, 14, 23, 0.85);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--z-dialog);
+  padding: var(--space-md);
+  backdrop-filter: blur(4px);
+}
+
+.dialog-overlay:not([hidden]) {
+  display: flex;
+}
+
+.dialog-box {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-xl);
+  width: 100%;
+  max-width: 400px;
+  text-align: center;
+}
+
+.dialog-title {
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  margin-bottom: var(--space-sm);
+}
+
+.dialog-message {
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-lg);
+}
+
+.dialog-actions {
+  display: flex;
+  gap: var(--space-md);
+  justify-content: center;
+}
+
+.dialog-actions .btn {
+  min-width: 100px;
+}
+
+/* ============================================================
+   14. Overlay: Toast Notifikasi
+   ============================================================ */
+.toast {
+  position: fixed;
+  bottom: var(--space-xl);
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  padding: 0.625rem 1.25rem;
+  z-index: var(--z-toast);
+  max-width: 90vw;
+  text-align: center;
+  animation: slideUp var(--transition-base);
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateX(-50%) translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+  }
+}
+
+.toast-message {
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+}
+
+/* ============================================================
+   15. Aksesibilitas
+   ============================================================ */
+.no-animation *,
+.no-animation *::before,
+.no-animation *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* Skip link untuk keyboard navigation */
+.skip-link {
+  position: absolute;
+  top: -100%;
+  left: var(--space-md);
+  background-color: var(--color-primary);
+  color: var(--color-text);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-md);
+  z-index: 9999;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.skip-link:focus {
+  top: var(--space-md);
+}
+
+/* ============================================================
+   16. Media Queries
+   ============================================================ */
+
+/* Mobile first — satu kolom default */
+@media (max-width: 767px) {
+  .game-header {
+    gap: var(--space-xs);
+  }
+
+  .game-actions {
+    gap: var(--space-xs);
+  }
+
+  .btn--icon {
+    padding: 0.375rem 0.5rem;
+    font-size: 0.75rem;
+  }
+
+  .game-title {
+    font-size: var(--font-size-2xl);
+  }
+
+  .score-value {
+    font-size: var(--font-size-2xl);
+  }
+}
+
+/* Tablet dan desktop — dua kolom */
+@media (min-width: 768px) {
+  .screen-content {
+    padding: var(--space-xl) var(--space-xl);
+  }
+
+  .home-nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    max-width: 500px;
+  }
+
+  .home-nav .btn {
+    width: auto;
+    min-width: 160px;
+  }
+
+  .difficulty-options {
+    flex-direction: row;
+    max-width: 700px;
+  }
+
+  .btn--difficulty {
+    flex: 1;
+  }
+
+  .result-actions {
+    flex-direction: row;
+    max-width: 500px;
+    justify-content: center;
+  }
+
+  .result-actions .btn {
+    width: auto;
+    flex: 1;
+  }
+
+  .camera-container {
+    max-width: 360px;
+  }
+}
+
+/* Large screens */
+@media (min-width: 1200px) {
+  .screen-content {
+    max-width: 1100px;
+  }
+}
+
+/* Orientation change */
+@media (orientation: landscape) and (max-height: 600px) {
+  .camera-container {
+    max-width: 280px;
+    aspect-ratio: 4/3;
+  }
+
+  .game-header {
+    padding: var(--space-xs) 0;
+  }
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+  :root {
+    --color-border: rgba(255, 255, 255, 0.3);
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
